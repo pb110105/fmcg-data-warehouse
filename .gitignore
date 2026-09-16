@@ -1,0 +1,31 @@
+# Data
+data/raw/*
+data/landing/*
+!data/raw/README.md
+!data/landing/.gitkeep
+
+# Environment
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Logs and runtime
+logs/
+*.log
+airflow/logs/
+airflow/airflow.db
+postgres_data/
+pgadmin_data/
+
+# IDE and operating system
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+~$*
