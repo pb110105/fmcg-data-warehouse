@@ -1,10 +1,10 @@
-# Data
-data/raw/*
-data/landing/*
+# Source and intermediate data
+data/raw/**
+data/landing/**
 !data/raw/README.md
 !data/landing/.gitkeep
 
-# Environment
+# Secrets
 .env
 .env.*
 !.env.example

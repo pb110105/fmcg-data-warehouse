@@ -1,72 +1,164 @@
 # Kiến trúc tổng thể đề xuất
 
-## 1. Luồng dữ liệu
+## 1. Mục tiêu kiến trúc
+
+Hệ thống tích hợp tám bảng Complete Journey vào kho dữ liệu PostgreSQL, phục vụ phân tích doanh số, giá bán và khuyến mãi.
+
+Hệ thống triển khai cục bộ, có khả năng chạy lại pipeline, kiểm tra chất lượng và truy vết nguồn dữ liệu.
+
+## 2. Luồng xử lý
 
 ```mermaid
-flowchart LR
-    A["Excel nguồn"] --> B["Landing"]
-    B --> C["PostgreSQL Staging"]
-    C --> D["Data Warehouse"]
-    D --> E["Data Mart"]
-    E --> F["Power BI"]
-    G["Airflow"] -. "Điều phối ETL" .-> B
-    G -. "Điều phối ETL" .-> C
-    G -. "Điều phối ETL" .-> D
+flowchart TB
+    R["Raw: 8 tệp RDA/RDS"] --> E["Python: đọc và nạp nguồn"]
+    E --> S["PostgreSQL: staging"]
+    S --> T["ETL: kiểm tra và biến đổi"]
+    T --> W["PostgreSQL: dw"]
+    W --> M["PostgreSQL: mart"]
+    M --> B["Power BI Desktop"]
+
+    A["Apache Airflow"] -.-> E
+    A -.-> T
+    A -.-> M
+
+    E -.-> Q["PostgreSQL: audit"]
+    T -.-> Q
+    M -.-> Q
 ```
 
-## 2. Thành phần
+Vùng Landing được sử dụng nếu cần lưu bản chuyển đổi trung gian để tối ưu việc đọc và nạp. Không bắt buộc chuyển dữ liệu sang Excel hoặc CSV.
 
-| Thành phần | Công nghệ | Vai trò |
-|---|---|---|
-| Nguồn | XLSX và PDF | Dữ liệu bán hàng và tài liệu giải thích |
-| Landing | File system cục bộ | Lưu bản được giải nén để pipeline đọc |
-| Staging | PostgreSQL schema `staging` | Giữ cấu trúc gần nguồn và metadata lần nạp |
-| Xử lý | Python, pandas | Làm sạch, chuẩn hóa, kiểm tra và ánh xạ khóa |
-| Data Warehouse | PostgreSQL schema `dw` | Lưu Fact và Dimension theo mô hình sao |
-| Data Mart | PostgreSQL schema `mart` | Cung cấp bảng/view phục vụ từng nhóm phân tích |
-| Điều phối | Apache Airflow | Quản lý thứ tự task, lịch chạy, retry và trạng thái |
-| Audit | PostgreSQL schema `audit` | Lưu thông tin lần chạy và lỗi chất lượng dữ liệu |
-| BI | Power BI | Trực quan hóa và khai thác dữ liệu |
-| Môi trường | Docker Compose | Khởi tạo PostgreSQL, Airflow và các dịch vụ liên quan |
+## 3. Thành phần
 
-## 3. Mô hình đa chiều sơ bộ
+| Thành phần       | Công nghệ            | Trách nhiệm                                        |
+| ---------------- | -------------------- | -------------------------------------------------- |
+| Raw              | File system          | Giữ nguyên tám tệp nguồn                           |
+| Đọc nguồn        | Python, pyreadr      | Đọc RDA/RDS và kiểm tra cấu trúc                   |
+| Landing, nếu cần | File system          | Lưu bản chuyển đổi có thể tái tạo                  |
+| Staging          | PostgreSQL `staging` | Giữ dữ liệu gần nguồn và metadata                  |
+| Biến đổi         | Python, pandas, SQL  | Chuẩn hóa, kiểm tra, phân loại FMCG và ánh xạ khóa |
+| Kho dữ liệu      | PostgreSQL `dw`      | Lưu các nghiệp vụ ở grain đã xác định              |
+| Data Mart        | PostgreSQL `mart`    | Cung cấp dữ liệu và công thức dùng chung cho BI    |
+| Audit            | PostgreSQL `audit`   | Ghi lần chạy, lỗi, số dòng và đối soát             |
+| Điều phối        | Apache Airflow       | Quản lý phụ thuộc, trạng thái và retry             |
+| Trực quan hóa    | Power BI Desktop     | Dashboard và bộ lọc                                |
+| Môi trường       | Docker Compose       | Quản lý các dịch vụ cục bộ                         |
 
-Grain của Fact_Weekly_Sales là kết quả bán hàng của một sản phẩm tại một cửa hàng trong một tuần. Trạng thái khuyến mãi là thuộc tính mô tả của quan sát, được liên kết thông qua promotion_key.
+Airflow điều phối việc xử lý bộ nguồn hiện có; lịch chạy không đồng nghĩa nguồn có dữ liệu mới liên tục.
 
-```mermaid
-erDiagram
-    DIM_DATE ||--o{ FACT_WEEKLY_SALES : date_key
-    DIM_PRODUCT ||--o{ FACT_WEEKLY_SALES : product_key
-    DIM_STORE ||--o{ FACT_WEEKLY_SALES : store_key
-    DIM_PROMOTION ||--o{ FACT_WEEKLY_SALES : promotion_key
-```
+## 4. Nguyên tắc Staging và ETL
 
-Các bảng dự kiến:
+* Tách bảng Staging theo tám bảng nguồn.
+* Giữ mã định danh dạng chuỗi.
+* Bảo toàn giá trị nguồn để truy vết.
+* Gắn thông tin lần nạp và tệp nguồn.
+* Kiểm tra cấu trúc trước khi nạp.
+* Chuẩn hóa kiểu dữ liệu mà không tự suy diễn giá trị thiếu.
+* Áp dụng quy tắc phạm vi FMCG có phiên bản.
+* Ghi riêng các trường hợp ngoài phạm vi và cần xem xét.
+* Nạp Dimension trước các Fact phụ thuộc.
+* Chỉ công bố dữ liệu cho Data Mart sau khi qua các kiểm tra bắt buộc.
 
-- `Dim_Date`: ngày, tuần, tháng, quý và năm.
-- `Dim_Product`: UPC, mô tả, nhà sản xuất, ngành hàng, tiểu ngành hàng và kích thước.
-- `Dim_Store`: mã, tên, thành phố, bang, MSA, phân khúc, diện tích và thuộc tính cửa hàng.
-- `Dim_Promotion`: năm trạng thái hỗ trợ khuyến mãi quan sát được.
-- `Fact_Weekly_Sales`: `units`, `visits`, `hhs`, `spend`, `price`, `base_price` và các cờ chất lượng cần thiết.
+Bảng khuyến mãi có hơn 20 triệu dòng. Thiết kế phải kiểm soát bộ nhớ khi đọc, tránh giữ nhiều bản sao DataFrame và sử dụng cơ chế nạp hàng loạt phù hợp.
 
-Một Fact và bốn Dimension là phù hợp với số thực thể và grain của nguồn. Không tạo `Dim_Customer`, `Dim_Basket` hoặc Fact lợi nhuận vì dữ liệu không chứa các đối tượng này.
+## 5. Mô hình đa chiều sơ bộ
 
-## 4. Data Mart dự kiến
+Hệ thống sử dụng nhiều Fact dùng chung Dimension. Mỗi Fact biểu diễn một nghiệp vụ riêng.
 
-| Data Mart | Mục đích |
-|---|---|
-| `mart_sales_overview` | Doanh số và sản lượng theo thời gian, sản phẩm và cửa hàng |
-| `mart_price_analysis` | Giá bán, giá cơ sở và mức giảm giá |
-| `mart_promotion_analysis` | So sánh kết quả bán hàng giữa các trạng thái khuyến mãi |
-| `mart_product_store` | Hiệu quả sản phẩm theo cửa hàng và khu vực |
+### 5.1. Các Fact
 
-## 5. Nguyên tắc thiết kế
+| Fact                      | Grain                     | Nội dung                                              |
+| ------------------------- | ------------------------- | ----------------------------------------------------- |
+| `Fact_Sales`              | Sản phẩm–giỏ hàng         | Số lượng, giá trị bán và ba khoản giảm giá            |
+| `Fact_Promotion_Weekly`   | Sản phẩm–cửa hàng–tuần    | Cờ trưng bày và quảng cáo sau tổng hợp                |
+| `Fact_Coupon_Redemption`  | Hộ–coupon–chiến dịch–ngày | Ghi nhận sử dụng coupon                               |
+| `Fact_Campaign_Household` | Hộ–chiến dịch             | Fact không có số đo tiền, ghi nhận hộ nhận chiến dịch |
 
-- Dữ liệu nguồn bất biến.
-- ETL có thể chạy lại mà không làm nhân đôi dữ liệu.
-- Mỗi lần chạy có `run_id`, thời gian bắt đầu, kết thúc và trạng thái.
-- Fact dùng surrogate key của các Dimension; business key vẫn được giữ để truy vết.
-- Bản ghi không ánh xạ được sử dụng dòng Unknown thay vì bị loại âm thầm.
-- Data Mart lấy dữ liệu từ Data Warehouse, không đọc trực tiếp file Excel.
-- Power BI đọc Data Mart để tránh lặp logic KPI ở nhiều dashboard.
+`Fact_Promotion_Weekly` thể hiện thông tin hỗ trợ tại cửa hàng, không chứng minh hộ đã nhìn thấy quảng cáo hoặc trưng bày.
 
+### 5.2. Các Dimension
+
+| Dimension       | Nội dung                                                  |
+| --------------- | --------------------------------------------------------- |
+| `Dim_Date`      | Ngày, tháng, quý và năm                                   |
+| `Dim_Week`      | Mã tuần nguồn và khoảng ngày đã xác minh                  |
+| `Dim_Product`   | Sản phẩm, ngành hàng, quy cách và trạng thái phạm vi FMCG |
+| `Dim_Store`     | Mã cửa hàng; chưa có địa lý hoặc phân khúc                |
+| `Dim_Household` | Mã hộ và nhân khẩu học nếu có                             |
+| `Dim_Campaign`  | Loại và thời gian chiến dịch                              |
+| `Dim_Coupon`    | Mã coupon và thông tin nhận diện phù hợp nguồn            |
+
+Ngày bắt đầu và kết thúc chiến dịch có thể tham chiếu `Dim_Date` theo các vai trò khác nhau.
+
+### 5.3. Quan hệ dự kiến
+
+| Fact                      | Dimension liên quan                   |
+| ------------------------- | ------------------------------------- |
+| `Fact_Sales`              | Date, Week, Product, Store, Household |
+| `Fact_Promotion_Weekly`   | Week, Product, Store                  |
+| `Fact_Coupon_Redemption`  | Date, Household, Campaign, Coupon     |
+| `Fact_Campaign_Household` | Household, Campaign                   |
+
+`basket_id` được giữ trong Fact bán hàng để truy vết và đếm giỏ hàng phân biệt.
+
+Bảng `Bridge_Coupon_Campaign_Product` lưu các liên kết coupon–chiến dịch–sản phẩm sau xử lý trùng.
+
+## 6. Quy tắc tích hợp quan trọng
+
+### Giao dịch và khuyến mãi
+
+* Tổng hợp `promotions` về một dòng trên sản phẩm–cửa hàng–tuần trước khi bổ sung trạng thái cho dữ liệu bán hàng.
+* Không nối trực tiếp bảng khuyến mãi thô vào giao dịch rồi cộng tiền.
+* Giữ trạng thái chưa biết cho các giao dịch không khớp.
+* Có thể tạo trạng thái hỗ trợ phục vụ Data Mart mà không thêm một Dimension chỉ để tăng số bảng.
+
+### Coupon và giao dịch
+
+* Không gắn trực tiếp coupon hoặc chiến dịch vào Fact bán hàng khi nguồn không xác định liên kết đó.
+* Không cộng bản ghi sử dụng coupon sau phép nối với nhiều sản phẩm áp dụng.
+* Các Fact được tổng hợp riêng ở grain phù hợp trước khi kết hợp kết quả phân tích.
+
+### Hộ gia đình và sản phẩm
+
+* Xây danh sách hộ từ các nguồn nghiệp vụ liên quan, sau đó bổ sung nhân khẩu học.
+* Không loại giao dịch vì hộ thiếu nhân khẩu học.
+* Giữ mã sản phẩm chưa có danh mục bằng cơ chế bản ghi chưa đầy đủ hoặc Unknown có truy vết.
+* Không tự coi sản phẩm chưa xác định là FMCG.
+
+## 7. Data Mart
+
+| Data Mart                 | Nguồn kho dữ liệu chính                   | Mục đích                                    |
+| ------------------------- | ----------------------------------------- | ------------------------------------------- |
+| `mart_sales_overview`     | Fact bán hàng và Dimension                | Tổng quan bán hàng                          |
+| `mart_price_analysis`     | Fact bán hàng và sản phẩm                 | Giá trị bán trên đơn vị, các khoản giảm giá |
+| `mart_promotion_analysis` | Bán hàng tổng hợp tuần và khuyến mãi tuần | Bao phủ, so sánh trưng bày/quảng cáo        |
+| `mart_campaign_coupon`    | Fact hộ nhận chiến dịch và sử dụng coupon | Kết quả chiến dịch–coupon                   |
+
+Mart chiến dịch–coupon phải phân biệt phạm vi toàn nguồn với phạm vi FMCG của các mart bán hàng.
+
+## 8. Audit và khả năng chạy lại
+
+Mỗi lần chạy cần ghi:
+
+* `run_id`.
+* Thời điểm bắt đầu và kết thúc.
+* Trạng thái thực hiện.
+* Tệp và bảng được xử lý.
+* Số dòng đầu vào, đầu ra.
+* Kết quả kiểm tra khóa và chất lượng.
+* Tổng các số đo cần đối soát.
+* Lý do loại, tổng hợp hoặc cách ly bản ghi.
+
+Chạy lại cùng dữ liệu không được tạo bản ghi trùng. Cơ chế thay thế dữ liệu, upsert hoặc nạp theo batch sẽ được lựa chọn ở Giai đoạn 2.
+
+## 9. Các quyết định còn mở
+
+* Phạm vi ngành hàng FMCG.
+* Ánh xạ tuần và xử lý múi giờ.
+* Đơn vị số lượng theo sản phẩm.
+* Công thức giá trước giảm và tiền khách trả.
+* Precision, scale của số tiền và số lượng.
+* Cách lưu lịch sử Dimension.
+* Cơ chế nạp và công bố dữ liệu sau kiểm tra.
+
+Các nội dung trên phải được chốt trước khi triển khai phần ETL liên quan.

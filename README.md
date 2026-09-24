@@ -2,348 +2,213 @@
 
 ## 1. Giới thiệu
 
-Đây là đồ án tiểu luận chuyên ngành với đề tài:
+Tiểu luận chuyên ngành với đề tài:
 
 > **Xây dựng hệ thống kho dữ liệu bán lẻ FMCG phục vụ phân tích doanh số, giá bán và hiệu quả khuyến mãi**
 
-Đề tài xây dựng một hệ thống kho dữ liệu từ bộ dữ liệu bán lẻ **dunnhumby – Breakfast at the Frat**. Hệ thống dự kiến thực hiện các công việc từ tiếp nhận dữ liệu nguồn, kiểm tra chất lượng, xử lý ETL, thiết kế mô hình dữ liệu đa chiều, xây dựng Data Mart đến trực quan hóa kết quả bằng Power BI.
+Dự án sử dụng bộ dữ liệu **dunnhumby – The Complete Journey**, theo phiên bản được phân phối trong dự án R `completejourney`.
+
+Hệ thống dự kiến tiếp nhận dữ liệu nguồn, kiểm tra chất lượng, thực hiện ETL, tổ chức kho dữ liệu đa chiều và xây dựng Data Mart phục vụ dashboard Power BI.
+
+Đề tài được thực hiện theo hình thức cá nhân.
+
+| MSSV     | Họ và tên          |
+| -------- | ------------------ |
+| 23133006 | Phạm Trần Quốc Bảo |
 
 ## 2. Mục tiêu
 
-Các mục tiêu chính của đề tài gồm:
-
-* Khảo sát cấu trúc và đánh giá chất lượng dữ liệu nguồn.
-* Xây dựng vùng Landing và Staging để tiếp nhận dữ liệu.
-* Xây dựng quy trình ETL bằng Python và pandas.
-* Thiết kế kho dữ liệu theo mô hình hình sao.
-* Xây dựng các quy tắc kiểm tra chất lượng dữ liệu.
-* Xây dựng Data Mart phục vụ từng nhóm yêu cầu phân tích.
-* Phân tích doanh số, sản lượng, giá bán và mức giảm giá.
-* So sánh kết quả bán hàng giữa các điều kiện khuyến mãi.
-* Phân tích hoạt động bán hàng theo thời gian, sản phẩm, cửa hàng và khu vực.
+* Khảo sát cấu trúc và chất lượng dữ liệu.
+* Xác định phạm vi sản phẩm FMCG.
+* Thiết kế kho dữ liệu phục vụ nhiều nghiệp vụ liên quan.
+* Xây dựng ETL có khả năng chạy lại và đối soát.
+* Phân tích doanh số, giá trị bán trên đơn vị và các khoản giảm giá.
+* So sánh kết quả bán hàng theo trưng bày và quảng cáo.
+* Thống kê hộ nhận chiến dịch và sử dụng coupon.
 * Xây dựng dashboard Power BI.
-* Đối soát dữ liệu nguồn với dữ liệu trong kho dữ liệu.
 
-## 3. Bộ dữ liệu
+## 3. Dữ liệu nguồn
 
-Đề tài sử dụng bộ dữ liệu **Breakfast at the Frat** do dunnhumby cung cấp.
+Dữ liệu được lưu tại `data/raw/complete_journey/`.
 
-Nguồn dữ liệu:
+| Tệp                         |    Số dòng | Nội dung                                  |
+| --------------------------- | ---------: | ----------------------------------------- |
+| `transactions.rds`          |  1.469.307 | Giao dịch mua sản phẩm                    |
+| `promotions.rds`            | 20.940.529 | Trưng bày và quảng cáo                    |
+| `products.rda`              |     92.331 | Danh mục sản phẩm                         |
+| `demographics.rda`          |        801 | Nhân khẩu học của một phần hộ gia đình    |
+| `campaigns.rda`             |      6.589 | Hộ gia đình nhận chiến dịch               |
+| `campaign_descriptions.rda` |         27 | Mô tả chiến dịch                          |
+| `coupons.rda`               |    116.204 | Coupon áp dụng cho sản phẩm và chiến dịch |
+| `coupon_redemptions.rda`    |      2.102 | Ghi nhận sử dụng coupon                   |
+
+Các số liệu trên là quy mô nguồn trước khi lọc FMCG và xử lý chất lượng.
+
+Bảng giao dịch có:
+
+* 155.848 giỏ hàng phân biệt.
+* 2.469 hộ gia đình.
+* 457 mã cửa hàng.
+* 68.509 mã sản phẩm.
+* Timestamp từ 01/01/2017 đến 01/01/2018.
+
+Các mốc thời gian là giá trị trong phiên bản tệp đang sử dụng, không tự động xác nhận năm thu thập dữ liệu gốc.
+
+Nguồn tham khảo:
 
 * [dunnhumby Source Files](https://www.dunnhumby.com/source-files/)
+* [completejourney](https://bradleyboehmke.github.io/completejourney/)
+* [User Guide](https://bradleyboehmke.github.io/completejourney/articles/completejourney.html)
+* [Thư mục dữ liệu](https://github.com/bradleyboehmke/completejourney/tree/master/data)
 
-### 3.1. Quy mô dữ liệu
+## 4. Phạm vi
 
-| Thuộc tính                     |    Giá trị |
-| ------------------------------ | ---------: |
-| Số bản ghi bán hàng            |    524.950 |
-| Khoảng thời gian               |   156 tuần |
-| Thời gian bắt đầu              | 14/01/2009 |
-| Thời gian kết thúc             | 04/01/2012 |
-| Số cửa hàng                    |         77 |
-| Số sản phẩm có giao dịch       |         55 |
-| Số sản phẩm trong bảng tra cứu |         58 |
-| Số nhóm ngành hàng             |          4 |
+### Trong phạm vi
 
-Bốn nhóm ngành hàng trong dữ liệu gồm:
+* Khảo sát nguồn và xây dựng Data Dictionary.
+* Kiểm tra chất lượng, ánh xạ khóa và đối soát dữ liệu.
+* Xác định các sản phẩm thuộc FMCG.
+* Thiết kế Staging, Data Warehouse, Data Mart và audit.
+* Phân tích bán hàng theo thời gian, sản phẩm và mã cửa hàng.
+* Phân tích giá trị bán bình quân trên đơn vị và từng khoản giảm giá.
+* So sánh bán hàng theo thông tin trưng bày, quảng cáo.
+* Thống kê chiến dịch và sử dụng coupon.
+* Xây dựng dashboard và đánh giá pipeline.
 
-* Ngũ cốc đóng hộp.
-* Pizza đông lạnh.
-* Bánh pretzel.
-* Nước súc miệng.
+### Ngoài phạm vi
 
-### 3.2. Các bảng dữ liệu nguồn
-
-| Bảng                  | Nội dung                                         |
-| --------------------- | ------------------------------------------------ |
-| `dh Transaction Data` | Dữ liệu bán hàng theo tuần, cửa hàng và sản phẩm |
-| `dh Store Lookup`     | Thông tin cửa hàng, vị trí và phân khúc          |
-| `dh Products Lookup`  | Thông tin sản phẩm và ngành hàng                 |
-| `Glossary`            | Giải thích ý nghĩa các thuộc tính                |
-
-### 3.3. Mức độ chi tiết của dữ liệu
-
-Mỗi bản ghi trong bảng giao dịch thể hiện kết quả bán hàng của:
-
-> **Một sản phẩm tại một cửa hàng trong một tuần**
-
-Đây cũng là mức độ chi tiết dự kiến của bảng sự kiện `Fact_Weekly_Sales`.
-
-Dữ liệu không chứa mã hóa đơn hoặc mã khách hàng cá nhân. Do đó, các chỉ số `VISITS` và `HHS` không được cộng trực tiếp giữa nhiều sản phẩm để suy ra tổng số lượt mua hoặc tổng số hộ gia đình duy nhất.
-
-## 4. Phạm vi đề tài
-
-### 4.1. Nội dung thực hiện
-
-Đề tài tập trung vào:
-
-* Khảo sát và mô tả dữ liệu nguồn.
-* Kiểm tra chất lượng dữ liệu.
-* Xây dựng vùng Landing và Staging.
-* Thiết kế và triển khai quy trình ETL.
-* Thiết kế kho dữ liệu theo mô hình đa chiều.
-* Xây dựng bảng sự kiện và các bảng chiều.
-* Xây dựng Data Mart.
-* Phân tích doanh số và sản lượng.
-* Phân tích giá bán và mức giảm giá.
-* Phân tích khuyến mãi theo hướng mô tả và so sánh.
-* Phân tích theo thời gian, sản phẩm, cửa hàng và khu vực.
-* Xây dựng dashboard Power BI.
-* Đối soát và đánh giá hệ thống.
-
-### 4.2. Nội dung ngoài phạm vi
-
-Đề tài không thực hiện:
-
-* Dự báo theo thời gian.
-* Xây dựng mô hình Machine Learning.
-* Phân tích giỏ hàng.
-* Phân tích RFM.
+* Dự báo và Machine Learning.
+* Khai phá giỏ hàng và RFM.
 * Phân tích khách hàng cá nhân.
-* Phân tích lợi nhuận do dữ liệu không có giá vốn.
-* Khẳng định quan hệ nhân quả giữa khuyến mãi và doanh số.
+* Tính lợi nhuận hoặc ROI khi thiếu chi phí.
+* Khẳng định tác động nhân quả của khuyến mãi.
+* Phân tích địa lý cửa hàng khi chưa có dữ liệu bổ sung.
+* Khái quát kết quả cho toàn bộ thị trường FMCG hoặc Việt Nam.
 
-Kết quả phân tích khuyến mãi chỉ phản ánh sự khác biệt quan sát được giữa các nhóm dữ liệu, không chứng minh khuyến mãi là nguyên nhân trực tiếp làm thay đổi doanh số.
+Bán hàng và giá được phân tích trong phạm vi FMCG đã chọn. Chỉ số chiến dịch–coupon hiện dùng toàn bộ nguồn liên quan và phải ghi rõ phạm vi, vì bản ghi sử dụng coupon không xác định sản phẩm thực tế đã mua.
 
-## 5. Kiến trúc hệ thống dự kiến
+## 5. Kiến trúc dự kiến
 
-```mermaid
-flowchart TD
-    A["Dữ liệu nguồn ZIP"] --> B["Vùng Landing"]
-    B --> C["PostgreSQL Staging"]
-    C --> D["ETL bằng Python và pandas"]
-    D --> E["Data Warehouse"]
-    E --> F["Data Mart"]
-    F --> G["Power BI"]
+Các tệp RDA/RDS được đọc bằng Python và nạp vào PostgreSQL Staging. ETL thực hiện kiểm tra, chuẩn hóa, xác định phạm vi và ánh xạ khóa trước khi nạp Data Warehouse.
 
-    H["Apache Airflow"] -. "Điều phối pipeline" .-> D
-    I["Audit và Data Quality"] -. "Giám sát" .-> C
-    I -. "Đối soát" .-> E
-```
+Data Mart cung cấp dữ liệu cho Power BI. Apache Airflow điều phối pipeline; schema `audit` lưu trạng thái và kết quả kiểm tra.
 
-Hệ thống dự kiến sử dụng bốn schema chính trong PostgreSQL:
+| Schema    | Vai trò                               |
+| --------- | ------------------------------------- |
+| `staging` | Dữ liệu gần nguồn và metadata lần nạp |
+| `dw`      | Fact, Dimension và bảng liên kết      |
+| `mart`    | Dữ liệu phục vụ các nhóm KPI          |
+| `audit`   | Nhật ký, lỗi và kết quả đối soát      |
 
-| Schema    | Chức năng                                             |
-| --------- | ----------------------------------------------------- |
-| `staging` | Lưu dữ liệu được nạp từ nguồn trước khi biến đổi      |
-| `dw`      | Lưu bảng sự kiện và các bảng chiều                    |
-| `mart`    | Lưu dữ liệu tổng hợp phục vụ phân tích                |
-| `audit`   | Lưu nhật ký ETL, kết quả kiểm tra và đối soát dữ liệu |
+Chi tiết xem `docs/architecture/high_level_architecture.md`.
 
-## 6. Mô hình kho dữ liệu dự kiến
+## 6. Mô hình đa chiều dự kiến
 
-Kho dữ liệu được thiết kế theo mô hình hình sao.
+| Fact                      | Grain dự kiến                                                                   |
+| ------------------------- | ------------------------------------------------------------------------------- |
+| `Fact_Sales`              | Một sản phẩm trong một giỏ hàng                                                 |
+| `Fact_Promotion_Weekly`   | Một sản phẩm tại một cửa hàng trong một tuần, sau khi tổng hợp thông tin hỗ trợ |
+| `Fact_Coupon_Redemption`  | Một hộ–coupon–chiến dịch–ngày sử dụng theo nguồn                                |
+| `Fact_Campaign_Household` | Một hộ nhận một chiến dịch; Fact không có số đo tiền                            |
 
-### 6.1. Bảng sự kiện
+Các Dimension dự kiến:
 
-Bảng `Fact_Weekly_Sales` lưu dữ liệu bán hàng ở mức:
+* `Dim_Date`.
+* `Dim_Week`.
+* `Dim_Product`.
+* `Dim_Store`.
+* `Dim_Household`.
+* `Dim_Campaign`.
+* `Dim_Coupon`.
 
-> `Tuần × Cửa hàng × Sản phẩm`
+Bảng `Bridge_Coupon_Campaign_Product` biểu diễn quan hệ coupon–chiến dịch–sản phẩm.
 
-Các chỉ số chính dự kiến gồm:
+Đây là mô hình sơ bộ. Khóa, quan hệ, thuộc tính và cách lưu lịch sử sẽ được chốt ở Giai đoạn 2.
 
-* Số lượng bán (`UNITS`).
-* Doanh số (`SPEND`).
-* Số lượt mua chứa sản phẩm (`VISITS`).
-* Số hộ gia đình mua sản phẩm (`HHS`).
-* Giá bán thực tế (`PRICE`).
-* Giá cơ sở (`BASE_PRICE`).
-* Giá trị và tỷ lệ giảm giá.
+## 7. Data Mart và dashboard
 
-### 6.2. Các bảng chiều
+| Data Mart                 | Nội dung                                           |
+| ------------------------- | -------------------------------------------------- |
+| `mart_sales_overview`     | Giá trị bán, giỏ hàng, hộ mua và đóng góp doanh số |
+| `mart_price_analysis`     | Giá trị bán trên đơn vị và các khoản giảm giá      |
+| `mart_promotion_analysis` | Mức bao phủ và so sánh trưng bày/quảng cáo         |
+| `mart_campaign_coupon`    | Hộ nhận chiến dịch và sử dụng coupon               |
 
-| Bảng chiều      | Nội dung                                                       |
-| --------------- | -------------------------------------------------------------- |
-| `Dim_Date`      | Ngày kết thúc tuần, tuần, tháng, quý và năm                    |
-| `Dim_Product`   | UPC, thương hiệu, mô tả sản phẩm, tiểu nhóm và nhóm ngành hàng |
-| `Dim_Store`     | Cửa hàng, thành phố, bang, phân khúc và đặc điểm cửa hàng      |
-| `Dim_Promotion` | Tổ hợp các hình thức quảng cáo, trưng bày và giảm giá tạm thời |
+Định nghĩa chi tiết nằm trong `docs/requirements/kpi_definitions.md`.
 
-### 6.3. Các Data Mart dự kiến
+## 8. Công nghệ dự kiến
 
-| Data Mart                 | Mục đích                                     |
-| ------------------------- | -------------------------------------------- |
-| `mart_sales_overview`     | Phân tích tổng quan doanh số và sản lượng    |
-| `mart_price_analysis`     | Phân tích giá bán, giá cơ sở và mức giảm giá |
-| `mart_promotion_analysis` | So sánh các hình thức khuyến mãi             |
-| `mart_product_store`      | Phân tích sản phẩm và cửa hàng               |
+| Công nghệ        | Vai trò                                  |
+| ---------------- | ---------------------------------------- |
+| Python, pandas   | Đọc, khảo sát và biến đổi dữ liệu        |
+| pyreadr          | Đọc các tệp RDA/RDS                      |
+| PostgreSQL       | Staging, kho dữ liệu, Data Mart và audit |
+| Apache Airflow   | Điều phối ETL                            |
+| Docker Compose   | Quản lý các dịch vụ cục bộ               |
+| Power BI Desktop | Xây dựng báo cáo và dashboard            |
+| Git, GitHub      | Quản lý phiên bản và tiến độ             |
 
-## 7. Các chỉ số phân tích dự kiến
-
-Các chỉ số chính gồm:
-
-* Tổng doanh số.
-* Tổng số lượng bán.
-* Giá bán bình quân gia quyền.
-* Giá cơ sở bình quân gia quyền.
-* Giá trị giảm giá.
-* Tỷ lệ giảm giá.
-* Số lượng sản phẩm trên mỗi lượt mua.
-* Doanh số trên mỗi lượt mua.
-* Tỷ lệ bản ghi có khuyến mãi.
-* Mức chênh lệch doanh số giữa nhóm có và không có khuyến mãi.
-* Mức chênh lệch sản lượng giữa các hình thức khuyến mãi.
-
-## 8. Công nghệ sử dụng
-
-| Công nghệ      | Mục đích                                     |
-| -------------- | -------------------------------------------- |
-| Python         | Xây dựng chương trình xử lý dữ liệu          |
-| pandas         | Làm sạch, chuẩn hóa và biến đổi dữ liệu      |
-| PostgreSQL     | Lưu trữ Staging, Data Warehouse và Data Mart |
-| Apache Airflow | Điều phối và giám sát pipeline ETL           |
-| Docker Compose | Quản lý môi trường triển khai                |
-| Power BI       | Xây dựng dashboard và trực quan hóa dữ liệu  |
-| Git            | Quản lý phiên bản mã nguồn                   |
+Các phiên bản thư viện và cấu hình tài nguyên sẽ được chốt khi khởi tạo môi trường.
 
 ## 9. Cấu trúc thư mục
 
-```text
-fmcg-data-warehouse/
-├── airflow/                       # DAG và cấu hình Airflow
-├── dashboard/                     # Tệp Power BI và tài liệu dashboard
-├── data/
-│   ├── raw/                       # Tệp ZIP nguồn nguyên bản
-│   └── landing/                   # Dữ liệu được giải nén từ nguồn
-├── docs/
-│   ├── architecture/              # Tài liệu kiến trúc hệ thống
-│   ├── dataset/                   # Hồ sơ và từ điển dữ liệu nguồn
-│   ├── project/                   # Phạm vi, kế hoạch và tiến độ
-│   └── requirements/              # Câu hỏi nghiệp vụ và định nghĩa KPI
-├── sql/                           # DDL, truy vấn ETL và Data Mart
-├── src/                           # Mã nguồn Python
-├── .gitignore
-└── README.md
-```
+| Đường dẫn                    | Nội dung                              |
+| ---------------------------- | ------------------------------------- |
+| `data/raw/complete_journey/` | Tám tệp nguồn nguyên bản              |
+| `data/raw/README.md`         | Hướng dẫn chuẩn bị dữ liệu            |
+| `data/landing/`              | Bản chuyển đổi trung gian nếu cần     |
+| `docs/dataset/`              | Nguồn, kiểm kê, từ điển và chất lượng |
+| `docs/requirements/`         | Phạm vi, câu hỏi nghiệp vụ và KPI     |
+| `docs/architecture/`         | Kiến trúc hệ thống                    |
+| `docs/project/`              | Kế hoạch và tiến độ                   |
+| `src/`                       | Mã nguồn xử lý dữ liệu                |
+| `sql/`                       | DDL, truy vấn và Data Mart            |
+| `airflow/`                   | DAG và cấu hình liên quan             |
+| `dashboard/`                 | Tệp Power BI và tài liệu dashboard    |
 
-Dữ liệu nguồn có kích thước lớn và có thể chịu điều kiện sử dụng của đơn vị cung cấp. Vì vậy, không nên đưa trực tiếp các tệp dữ liệu trong `data/raw` và `data/landing` lên repository công khai.
+## 10. Các vấn đề cần xử lý
 
-## 10. Các vấn đề chất lượng dữ liệu đã xác định
+* Giao dịch có số lượng hoặc giá trị bán bằng 0.
+* Mã sản phẩm không khớp danh mục.
+* Coupon trùng dòng.
+* Nhiều dòng khuyến mãi trên cùng sản phẩm–cửa hàng–tuần.
+* Thiếu quy cách và một số thuộc tính sản phẩm.
+* Nhân khẩu học chỉ bao phủ một phần hộ.
+* Phạm vi cửa hàng của giao dịch và khuyến mãi khác nhau.
+* Công thức giá cần phân biệt giá trị nhà bán lẻ nhận và tiền khách trả.
 
-Kết quả khảo sát ban đầu ghi nhận:
-
-| Vấn đề                                     | Số lượng |
-| ------------------------------------------ | -------: |
-| Bản ghi thiếu `PRICE`                      |       23 |
-| Bản ghi thiếu `BASE_PRICE`                 |      185 |
-| Bản ghi có `PRICE > BASE_PRICE`            |    6.047 |
-| Bản ghi có `UNITS < VISITS`                |    2.309 |
-| Cửa hàng bị trùng và mâu thuẫn phân khúc   |        2 |
-| Giao dịch bị ảnh hưởng bởi lỗi cửa hàng    |   13.693 |
-| Bản ghi cửa hàng thiếu `PARKING_SPACE_QTY` |       52 |
-| Sản phẩm trong lookup không có giao dịch   |        3 |
-
-Hai mã cửa hàng cần xử lý trước khi nối dữ liệu:
-
-* `4503`
-* `17627`
-
-Hai cửa hàng này xuất hiện với hai giá trị phân khúc khác nhau là `MAINSTREAM` và `UPSCALE`. Nếu nối bảng trực tiếp mà không xử lý, các dòng giao dịch liên quan có thể bị nhân đôi.
-
-Ngoài các vấn đề trên, kết quả khảo sát ban đầu cho thấy:
-
-* Không trùng khóa tự nhiên `WEEK_END_DATE + STORE_NUM + UPC`.
-* Không có khóa sản phẩm hoặc cửa hàng không tồn tại.
-* Không có giá trị âm trong các chỉ số chính.
-* Các biến khuyến mãi chỉ chứa giá trị `0` và `1`.
-* Dữ liệu có đủ 156 tuần liên tục.
+Số liệu và hướng xử lý được quản lý tập trung trong `docs/dataset/data_quality_findings.md`.
 
 ## 11. Trạng thái hiện tại
 
-Dự án hiện đang ở **Giai đoạn 1 – Chuẩn bị đề tài và dữ liệu**.
+Dự án đang **cập nhật Giai đoạn 1 theo Complete Journey**.
 
-Các nội dung đã thực hiện:
+Đã thực hiện:
 
-* Xác định tên đề tài.
-* Xác định mục tiêu và phạm vi nghiên cứu.
-* Thu thập và lưu trữ dữ liệu nguồn.
-* Kiểm tra tính toàn vẹn của tệp dữ liệu.
-* Khảo sát cấu trúc các bảng.
-* Xây dựng từ điển dữ liệu nguồn.
-* Xác định mức độ chi tiết của dữ liệu.
-* Đánh giá sơ bộ chất lượng dữ liệu.
-* Xác định câu hỏi nghiệp vụ và KPI.
-* Đề xuất kiến trúc tổng thể.
-* Xây dựng kế hoạch thực hiện đề tài
+* Giữ nguyên tên đề tài và mục tiêu chính.
+* Chuẩn bị đủ tám tệp nguồn.
+* Kiểm tra sơ bộ cấu trúc, số dòng, khóa và chất lượng.
+* Soạn nội dung cập nhật nguồn, Data Dictionary và đánh giá chất lượng.
+* Soạn câu hỏi nghiệp vụ và KPI.
+* Đề xuất kiến trúc và mô hình đa chiều.
 
-Các thành phần ETL, cơ sở dữ liệu, Airflow và Power BI chưa được triển khai tại giai đoạn này.
+Còn cần hoàn thiện:
 
-## 12. Kế hoạch thực hiện tiếp theo
+* Chốt phạm vi FMCG.
+* Đồng bộ các bản thảo vào project và rà soát tham chiếu.
+* Cập nhật kiểm kê nguồn và hướng dẫn dữ liệu.
+* Xác minh thời gian, đơn vị và các công thức giá còn mở.
+* Cập nhật phần báo cáo học thuật sau theo kế hoạch.
 
-### Giai đoạn 2: Phân tích yêu cầu và thiết kế hệ thống
+ETL, cơ sở dữ liệu, DAG và dashboard chưa được triển khai.
 
-* Hoàn thiện yêu cầu nghiệp vụ.
-* Thiết kế vùng Staging.
-* Xây dựng Source-to-Target Mapping.
-* Thiết kế mô hình hình sao.
-* Thiết kế bảng audit và Data Quality.
-* Viết các câu lệnh DDL.
+## 12. Hướng dẫn sử dụng hiện tại
 
-### Giai đoạn 3: Xây dựng cơ sở dữ liệu
+1. Chuẩn bị đủ tám tệp tại `data/raw/complete_journey/`.
+2. Đọc hồ sơ nguồn và kiểm kê trong `docs/dataset/`.
+3. Đọc câu hỏi nghiệp vụ và định nghĩa KPI.
+4. Theo dõi các việc còn lại trong `docs/project/roadmap.md`.
 
-* Khởi tạo PostgreSQL bằng Docker Compose.
-* Tạo các schema.
-* Tạo bảng Staging.
-* Tạo các bảng chiều và bảng sự kiện.
-* Tạo bảng nhật ký và kiểm soát chất lượng.
+Dự án chưa có phiên bản chạy hoàn chỉnh. Lệnh cài đặt, khởi tạo cơ sở dữ liệu và chạy pipeline sẽ được bổ sung sau khi triển khai.
 
-### Giai đoạn 4: Xây dựng ETL
-
-* Trích xuất dữ liệu từ Excel.
-* Kiểm tra và làm sạch dữ liệu.
-* Chuẩn hóa kiểu dữ liệu.
-* Xử lý dữ liệu lỗi.
-* Nạp bảng chiều.
-* Nạp bảng sự kiện.
-* Đối soát dữ liệu sau khi nạp.
-
-### Giai đoạn 5: Điều phối bằng Airflow
-
-* Xây dựng DAG ETL.
-* Cấu hình thứ tự các tác vụ.
-* Thiết lập logging và xử lý lỗi.
-* Kiểm tra khả năng chạy lại pipeline.
-
-### Giai đoạn 6: Xây dựng Data Mart và dashboard
-
-* Xây dựng các bảng tổng hợp.
-* Kết nối Power BI với PostgreSQL.
-* Xây dựng các chỉ số DAX.
-* Thiết kế dashboard.
-* Kiểm tra tính chính xác của số liệu.
-
-### Giai đoạn 7: Đánh giá và hoàn thiện
-
-* Đánh giá chất lượng dữ liệu.
-* Đối soát dữ liệu nguồn và kho dữ liệu.
-* Đánh giá hiệu năng truy vấn.
-* Đánh giá pipeline ETL.
-* Hoàn thiện báo cáo và nội dung trình bày.
-
-## 13. Hướng dẫn chạy dự án
-
-Dự án hiện chưa bước vào giai đoạn triển khai nên chưa có phiên bản chạy hoàn chỉnh.
-
-Hướng dẫn cài đặt và vận hành sẽ được bổ sung sau khi hoàn thành:
-
-* Tệp `docker-compose.yml`.
-* Cấu hình kết nối PostgreSQL.
-* Các câu lệnh tạo cơ sở dữ liệu.
-* Chương trình ETL.
-* DAG Airflow.
-* Data Mart.
-* Dashboard Power BI.
-
-## 14. Sinh viên thực hiện
-
-| MSSV | Họ và tên |
-|---|---|
-| 23133006 | Phạm Trần Quốc Bảo |
-
-Đề tài được thực hiện theo hình thức tiểu luận cá nhân.
-
-## 15. Lưu ý sử dụng dữ liệu
-
-Bộ dữ liệu được sử dụng cho mục đích học tập và nghiên cứu. Quyền sở hữu và các điều kiện sử dụng dữ liệu thuộc về dunnhumby.
-
-Kết quả phân tích chỉ phản ánh các sản phẩm, cửa hàng, khu vực và khoảng thời gian có trong bộ dữ liệu. Kết quả không đại diện cho toàn bộ thị trường FMCG và không được sử dụng để khái quát trực tiếp cho thị trường bán lẻ FMCG tại Việt Nam.
+Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành lên GitHub.

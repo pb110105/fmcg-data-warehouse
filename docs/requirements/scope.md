@@ -1,44 +1,42 @@
-# Phạm vi dự án
+# Phạm vi đề tài
 
-## 1. Đối tượng
+## 1. Tên đề tài
 
-Đối tượng của đề tài là hệ thống kho dữ liệu phục vụ phân tích hoạt động bán lẻ FMCG. Đề tài tập trung vào quá trình tiếp nhận, làm sạch, chuẩn hóa, tích hợp và tổ chức dữ liệu theo mô hình đa chiều.
-
-Dữ liệu nghiên cứu gồm dữ liệu bán hàng theo tuần, sản phẩm, cửa hàng, giá bán, giá cơ sở và ba hình thức hỗ trợ khuyến mãi. Trên cơ sở đó, hệ thống cung cấp chỉ số về doanh số, sản lượng, giá bán, mức giảm giá, sản phẩm, cửa hàng và khuyến mãi.
+Xây dựng hệ thống kho dữ liệu bán lẻ FMCG phục vụ phân tích doanh số, giá bán và hiệu quả khuyến mãi.
 
 ## 2. Phạm vi dữ liệu
 
-- Bộ dữ liệu: dunnhumby *Breakfast at the Frat*.
-- Thời gian: 156 tuần, từ 14/01/2009 đến 04/01/2012.
-- Grain: sản phẩm–cửa hàng–tuần.
-- Quy mô: 524.950 bản ghi bán hàng, 77 cửa hàng và 55 sản phẩm phát sinh bán hàng.
-- Ngành hàng: ngũ cốc đóng hộp, pizza đông lạnh, bánh pretzel và nước súc miệng.
+- Sử dụng Complete Journey của dunnhumby, phiên bản từ package `completejourney`.
+- Gồm tám bảng: transactions, products, demographics, promotions, campaigns, campaign_descriptions, coupons và coupon_redemptions.
+- Phân tích bán hàng và hỗ trợ khuyến mãi trên các sản phẩm được xác định thuộc FMCG theo `docs/dataset/fmcg_scope.md`.
+- Phân tích chiến dịch và đổi coupon trên phạm vi dữ liệu nguồn; không quy đổi trực tiếp thành doanh số FMCG.
+- Quy mô dữ liệu sau lọc FMCG được xác định khi hoàn tất phân loại sản phẩm.
 
-## 3. Trong phạm vi
+## 3. Nội dung thực hiện
 
-- Khảo sát cấu trúc và đánh giá chất lượng dữ liệu nguồn.
-- Xây dựng vùng Landing và Staging.
-- Xây dựng quy trình ETL để làm sạch, chuẩn hóa, tích hợp và nạp dữ liệu.
-- Thiết kế kho dữ liệu theo mô hình hình sao.
-- Xây dựng bảng kiểm soát chất lượng và log ETL.
-- Xây dựng Data Mart doanh số, giá, khuyến mãi, sản phẩm và cửa hàng.
-- Phân tích doanh số và sản lượng theo thời gian, sản phẩm, cửa hàng và khu vực.
-- Phân tích giá bán và mức giảm giá.
-- So sánh kết quả bán hàng giữa các điều kiện khuyến mãi.
-- Xây dựng dashboard Power BI.
-- Đối soát dữ liệu, đánh giá ETL, chất lượng dữ liệu và hiệu năng truy vấn.
+- Khảo sát dữ liệu và xây dựng quy tắc kiểm tra chất lượng.
+- Thiết kế Staging, kho dữ liệu Fact–Dimension và Data Mart.
+- Xây dựng ETL, nhật ký xử lý và đối soát dữ liệu.
+- Điều phối pipeline bằng Apache Airflow.
+- Phân tích doanh số, sản lượng, giá trị bán bình quân trên đơn vị và các khoản giảm giá.
+- So sánh kết quả bán hàng theo điều kiện trưng bày, quảng cáo.
+- Thống kê tiếp nhận chiến dịch và đổi coupon.
+- Xây dựng dashboard Power BI và đánh giá hệ thống.
 
-## 4. Ngoài phạm vi
+## 4. Nội dung ngoài phạm vi
 
-- Dự báo theo thời gian.
-- Machine Learning.
-- Khai phá giỏ hàng.
-- RFM và phân tích khách hàng cá nhân.
-- Phân tích lợi nhuận do không có giá vốn.
+- Dự báo, Machine Learning, RFM và khai phá giỏ hàng.
+- Tính lợi nhuận hoặc ROI do thiếu dữ liệu chi phí.
 - Khẳng định quan hệ nhân quả giữa khuyến mãi và doanh số.
-- Khái quát kết quả cho toàn bộ thị trường FMCG hoặc thị trường Việt Nam.
+- Gán trực tiếp giao dịch bán hàng cho chiến dịch khi không có khóa liên kết.
+- Phân tích địa lý cửa hàng do nguồn hiện tại không có thông tin vị trí.
 
-## 5. Phạm vi công nghệ
+## 5. Công nghệ
 
-Hệ thống chạy cục bộ bằng Docker Compose. Python và pandas xử lý dữ liệu; PostgreSQL lưu Staging, Data Warehouse, Data Mart và audit; Apache Airflow điều phối pipeline; Power BI trực quan hóa kết quả.
+Python, pandas, pyreadr, PostgreSQL, Apache Airflow, Docker Compose và Power BI; triển khai trên môi trường cục bộ.
 
+## 6. Giới hạn diễn giải
+
+- Chỉ cộng sản lượng giữa các sản phẩm có đơn vị đo tương thích.
+- Công thức giá và giảm giá phải được xác minh trước khi triển khai KPI.
+- Kết quả chỉ phản ánh dữ liệu được cung cấp, không đại diện cho toàn bộ thị trường FMCG hoặc thị trường Việt Nam.

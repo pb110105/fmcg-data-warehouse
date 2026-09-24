@@ -1,70 +1,79 @@
 # Câu hỏi nghiệp vụ
 
-## 1. Người sử dụng giả định
+## 1. Mục tiêu phân tích
 
-- Nhà quản lý bán hàng.
-- Nhà quản lý ngành hàng.
-- Nhà quản lý cửa hàng.
-- Bộ phận quản lý giá và khuyến mãi.
-- Bộ phận Business Intelligence.
+Hệ thống kho dữ liệu phục vụ ba nội dung chính:
 
-## 2. Câu hỏi về doanh số và sản lượng
+* Phân tích doanh số và sản lượng.
+* Phân tích giá bán và các khoản giảm giá.
+* Phân tích kết quả khuyến mãi thông qua trưng bày, quảng cáo, chiến dịch và sử dụng coupon.
 
-| Mã | Câu hỏi |
-|---|---|
-| BQ-S01 | Tổng doanh số và số lượng bán trong toàn bộ thời gian nghiên cứu là bao nhiêu? |
-| BQ-S02 | Doanh số và sản lượng biến động như thế nào theo tuần, tháng, quý và năm? |
-| BQ-S03 | Sản phẩm, ngành hàng và nhà sản xuất nào đóng góp nhiều nhất hoặc ít nhất vào doanh số? |
-| BQ-S04 | Doanh số và sản lượng phân bổ như thế nào theo cửa hàng, thành phố, bang và phân khúc cửa hàng? |
-| BQ-S05 | Tỷ trọng đóng góp doanh số của từng sản phẩm, ngành hàng, cửa hàng và khu vực là bao nhiêu? |
+Các câu hỏi sử dụng dữ liệu Complete Journey và phạm vi sản phẩm FMCG được xác định trong `fmcg_scope.md`.
 
-## 3. Câu hỏi về giá bán
+## 2. Câu hỏi về doanh số
 
-| Mã | Câu hỏi |
-|---|---|
-| BQ-P01 | Giá bán thực tế và giá cơ sở nằm trong khoảng nào đối với từng sản phẩm và ngành hàng? |
-| BQ-P02 | Giá bán bình quân gia quyền khác nhau như thế nào theo sản phẩm, ngành hàng, cửa hàng và thời gian? |
-| BQ-P03 | Sản phẩm hoặc ngành hàng nào có mức giảm giá và tần suất giảm giá cao nhất? |
-| BQ-P04 | Doanh số và sản lượng quan sát được khác nhau như thế nào giữa các nhóm mức giảm giá? |
-| BQ-P05 | Mối liên hệ quan sát được giữa giá bán, mức giảm giá, sản lượng và doanh số có khác nhau giữa các ngành hàng hay không? |
+| Mã     | Câu hỏi                                                                               | KPI liên quan             |
+| ------ | ------------------------------------------------------------------------------------- | ------------------------- |
+| BQ-S01 | Tổng giá trị bán và sản lượng trong phạm vi nghiên cứu là bao nhiêu?                  | KPI-S01, KPI-S02          |
+| BQ-S02 | Giá trị bán biến động như thế nào theo ngày, tuần và tháng?                           | KPI-S01, KPI-S07          |
+| BQ-S03 | Sản phẩm và ngành hàng nào đóng góp nhiều nhất vào giá trị bán?                       | KPI-S01, KPI-S06          |
+| BQ-S04 | Giá trị bán khác nhau như thế nào giữa các cửa hàng trong tập dữ liệu?                | KPI-S01, KPI-S03, KPI-S05 |
+| BQ-S05 | Có bao nhiêu giỏ hàng và hộ gia đình mua sản phẩm thuộc phạm vi phân tích?            | KPI-S03, KPI-S04          |
+| BQ-S06 | Giá trị bán thuộc phạm vi phân tích bình quân trên một giỏ hàng thay đổi như thế nào? | KPI-S05                   |
 
-## 4. Câu hỏi về khuyến mãi
+## 3. Câu hỏi về giá và giảm giá
 
-| Mã | Câu hỏi |
-|---|---|
-| BQ-M01 | Tỷ lệ bản ghi bán hàng nhận ít nhất một hình thức hỗ trợ khuyến mãi là bao nhiêu? |
-| BQ-M02 | Bao nhiêu phần trăm doanh số và sản lượng phát sinh trong điều kiện có khuyến mãi? |
-| BQ-M03 | Doanh số, sản lượng và số lượng trên mỗi lượt mua khác nhau như thế nào giữa điều kiện có và không có khuyến mãi? |
-| BQ-M04 | Kết quả bán hàng quan sát được khác nhau như thế nào giữa TPR, trưng bày, quảng cáo và quảng cáo kết hợp trưng bày? |
-| BQ-M05 | Trạng thái khuyến mãi nào có doanh số và sản lượng bình quân trên một quan sát sản phẩm–cửa hàng–tuần cao nhất? |
-| BQ-M06 | Kết quả bán hàng của quảng cáo kết hợp trưng bày khác với từng hình thức riêng lẻ như thế nào? |
-| BQ-M07 | Chênh lệch kết quả bán hàng theo trạng thái khuyến mãi thay đổi như thế nào giữa các sản phẩm, ngành hàng, khu vực và phân khúc cửa hàng? |
+| Mã     | Câu hỏi                                                                                                              | KPI liên quan             |
+| ------ | -------------------------------------------------------------------------------------------------------------------- | ------------------------- |
+| BQ-P01 | Giá trị bán bình quân trên một đơn vị của cùng sản phẩm thay đổi như thế nào theo thời gian và cửa hàng?             | KPI-P01                   |
+| BQ-P02 | Tổng giá trị từng loại giảm giá là bao nhiêu?                                                                        | KPI-P02, KPI-P03, KPI-P04 |
+| BQ-P03 | Tỷ lệ dòng mua có ghi nhận giảm giá khác nhau như thế nào giữa các sản phẩm và ngành hàng?                           | KPI-P05                   |
+| BQ-P04 | Bao nhiêu phần trăm giá trị bán phát sinh trên các dòng có ghi nhận giảm giá?                                        | KPI-P06                   |
+| BQ-P05 | Giá trị bán bình quân trên một đơn vị khác nhau như thế nào giữa các dòng có và không có giảm giá của cùng sản phẩm? | KPI-P01, KPI-P05          |
+| BQ-P06 | Các khoản giảm giá từ nhà bán lẻ và nhà sản xuất phân bổ như thế nào theo thời gian, sản phẩm và cửa hàng?           | KPI-P02, KPI-P03, KPI-P04 |
 
-## 5. Câu hỏi về sản phẩm và cửa hàng
+## 4. Câu hỏi về trưng bày và quảng cáo
 
-| Mã | Câu hỏi |
-|---|---|
-| BQ-PS01 | Những sản phẩm nào có doanh số và sản lượng cao nhất hoặc thấp nhất? |
-| BQ-PS02 | Hiệu quả bán hàng của cùng một sản phẩm khác nhau như thế nào giữa các cửa hàng và phân khúc cửa hàng? |
-| BQ-PS03 | Cửa hàng nào đóng góp nhiều nhất vào doanh số của từng ngành hàng? |
-| BQ-PS04 | Những tổ hợp sản phẩm–cửa hàng nào có doanh số hoặc sản lượng thấp cần được chú ý? |
-| BQ-PS05 | Sản phẩm nào có tỷ trọng doanh số phát sinh trong điều kiện khuyến mãi cao nhất? |
-| BQ-PS06 | Quy mô cửa hàng, số giỏ hàng trung bình và phân khúc cửa hàng có mối liên hệ quan sát được như thế nào với kết quả bán hàng? |
+| Mã     | Câu hỏi                                                                                                                                                                      | KPI liên quan    |
+| ------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| BQ-M01 | Bao nhiêu phần trăm giao dịch và giá trị bán có thể liên kết với thông tin trưng bày, quảng cáo?                                                                             | KPI-M01, KPI-M02 |
+| BQ-M02 | Giá trị bán phân bổ như thế nào giữa các trạng thái trưng bày và quảng cáo đã xác định?                                                                                      | KPI-M03          |
+| BQ-M03 | Giá trị bán bình quân trên một sản phẩm–cửa hàng–tuần có phát sinh mua khác nhau thế nào giữa các trạng thái?                                                                | KPI-M04          |
+| BQ-M04 | Sản lượng bình quân trên một sản phẩm–cửa hàng–tuần có phát sinh mua khác nhau thế nào giữa các trạng thái?                                                                  | KPI-M05          |
+| BQ-M05 | Trong cùng sản phẩm và cửa hàng, chênh lệch giá trị bán quan sát được giữa các tuần có hỗ trợ trưng bày/quảng cáo và các tuần không ghi nhận hai hình thức này là bao nhiêu? | KPI-M06          |
+| BQ-M06 | Trạng thái kết hợp quảng cáo và trưng bày có kết quả bán hàng quan sát được khác thế nào so với từng hình thức riêng lẻ?                                                     | KPI-M04, KPI-M05 |
+
+## 5. Câu hỏi về chiến dịch và coupon
+
+| Mã     | Câu hỏi                                                                               | KPI liên quan    |
+| ------ | ------------------------------------------------------------------------------------- | ---------------- |
+| BQ-C01 | Mỗi chiến dịch được ghi nhận gửi đến bao nhiêu hộ gia đình?                           | KPI-C01          |
+| BQ-C02 | Mỗi chiến dịch có bao nhiêu hộ sử dụng coupon và bao nhiêu bản ghi sử dụng?           | KPI-C02, KPI-C03 |
+| BQ-C03 | Tỷ lệ hộ sử dụng ít nhất một coupon khác nhau như thế nào giữa các chiến dịch?        | KPI-C04          |
+| BQ-C04 | Bình quân mỗi hộ có sử dụng coupon tạo ra bao nhiêu bản ghi sử dụng trong chiến dịch? | KPI-C05          |
+| BQ-C05 | Có bao nhiêu mã coupon khác nhau được sử dụng trong từng chiến dịch?                  | KPI-C06          |
+
+Các KPI chiến dịch–coupon được tính trên toàn bộ bản ghi chiến dịch–coupon nguồn và ghi rõ phạm vi này trên dashboard. Chưa gọi đây là kết quả sử dụng coupon riêng cho FMCG, vì bản ghi sử dụng không xác định sản phẩm thực tế đã mua.
 
 ## 6. Giới hạn diễn giải
 
-- Không gọi tổng `VISITS` của nhiều sản phẩm là số giỏ hàng duy nhất.
-- Không gọi tổng `HHS` của nhiều sản phẩm là số khách hàng hoặc hộ gia đình duy nhất.
-- Không sử dụng các câu hỏi trên để khẳng định khuyến mãi gây ra thay đổi doanh số.
-- Phân tích theo tháng sử dụng tháng chứa `WEEK_END_DATE`; dữ liệu không thể hiện ngày bán thực tế.
-- Mọi so sánh khuyến mãi phải trình bày cả quy mô mẫu và KPI bình quân, không chỉ tổng doanh số.
+* Giá trị bán là giá trị ghi nhận từ các hộ có trong nguồn, không phải toàn bộ doanh số của cửa hàng.
+* `sales_value` phản ánh số tiền nhà bán lẻ nhận được; không đồng nhất với tiền khách hàng thực trả.
+* Không phân tích theo thành phố, bang, diện tích hoặc phân khúc cửa hàng vì nguồn không cung cấp các thuộc tính đó.
+* So sánh giá và sản lượng phải xét tính tương đồng của sản phẩm và đơn vị.
+* Không suy ra doanh số do một chiến dịch hoặc coupon tạo ra khi thiếu liên kết giao dịch trực tiếp.
+* Không coi giao dịch không khớp bảng `promotions` là không khuyến mãi.
+* Không có trưng bày/quảng cáo không đồng nghĩa không có giảm giá.
+* Các chênh lệch giữa nhóm chỉ là kết quả mô tả, không phải tác động nhân quả.
+* Không tính lợi nhuận hoặc ROI do thiếu giá vốn và chi phí chiến dịch.
 
 ## 7. Ánh xạ đầu ra
 
-| Nhóm câu hỏi | KPI chính | Chiều phân tích | Data Mart dự kiến | Dashboard dự kiến |
-|---|---|---|---|---|
-| BQ-S | Doanh số, sản lượng, tỷ trọng đóng góp | Thời gian, sản phẩm, cửa hàng | `mart_sales_overview` | Tổng quan doanh số |
-| BQ-P | Giá bình quân, giá cơ sở, mức giảm giá | Thời gian, sản phẩm, cửa hàng | `mart_price_analysis` | Giá bán và mức giảm giá |
-| BQ-M | Tỷ trọng khuyến mãi, KPI bình quân, chênh lệch quan sát | Khuyến mãi, sản phẩm, cửa hàng | `mart_promotion_analysis` | Khuyến mãi |
-| BQ-PS | Doanh số, sản lượng, đóng góp | Sản phẩm, cửa hàng, khu vực | `mart_product_store` | Sản phẩm và cửa hàng |
+| Nhóm câu hỏi | Nguồn chính                                                | Data Mart dự kiến         | Dashboard              |
+| ------------ | ---------------------------------------------------------- | ------------------------- | ---------------------- |
+| BQ-S         | `transactions`, `products`                                 | `mart_sales_overview`     | Tổng quan doanh số     |
+| BQ-P         | `transactions`, `products`                                 | `mart_price_analysis`     | Giá bán và giảm giá    |
+| BQ-M         | `transactions`, `promotions`, `products`                   | `mart_promotion_analysis` | Trưng bày và quảng cáo |
+| BQ-C         | `campaigns`, `campaign_descriptions`, `coupon_redemptions` | `mart_campaign_coupon`    | Chiến dịch và coupon   |
 
+Data Mart là đầu ra phục vụ phân tích, không bắt buộc tương ứng một–một với bảng Fact.
