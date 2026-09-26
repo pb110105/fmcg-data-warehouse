@@ -229,3 +229,43 @@ Chưa tính:
 * KPI sử dụng coupon không bị nhân theo số sản phẩm áp dụng.
 * Dashboard ghi rõ phạm vi FMCG của bán hàng và phạm vi toàn nguồn của chiến dịch–coupon.
 * Chênh lệch khuyến mãi được diễn giải là quan sát, không phải quan hệ nhân quả.
+
+
+## Bổ sung: Quy tắc KPI số lượng, doanh số và giảm giá
+
+### 1. Phạm vi áp dụng
+
+- Chỉ sử dụng giao dịch có `scope_status = 'IN_SCOPE'`.
+- Phiên bản phân loại hiện tại: `1.3-cosmetics-and-exclusions`.
+- Tiền tệ: USD.
+- Số lượng: đơn vị ghi nhận trong dữ liệu nguồn.
+- Các công thức dưới đây dùng tên cột nguồn; tên cột đích sẽ được
+  ánh xạ trong giai đoạn thiết kế.
+- Điều kiện lọc KPI không đồng nghĩa với xóa bản ghi khỏi kho dữ liệu.
+
+### 2. KPI được chốt
+
+| KPI | Công thức | Điều kiện và cách diễn giải |
+|---|---|---|
+| Doanh số FMCG | `SUM(sales_value)` | Tổng giá trị nhà bán lẻ nhận theo nguồn; không trừ thêm các khoản giảm giá; giữ cả dòng có số lượng bằng 0 |
+| Số lượng theo sản phẩm | `SUM(quantity)` | Tổng đơn vị nguồn; ưu tiên phân tích theo cùng sản phẩm; không gọi là kg, lít hoặc gói khi chưa xác minh đơn vị |
+| Giá trị bán bình quân trên đơn vị nguồn | `SUM(sales_value) / NULLIF(SUM(quantity), 0)` | Cùng tập dòng có `quantity > 0` và `sales_value >= 0`; cả hai trường phải hợp lệ; ưu tiên tính theo sản phẩm |
+| Giảm giá thẻ khách hàng ghi nhận | `SUM(retail_disc)` | Tổng khoản giảm giá thẻ theo nguồn |
+| Giảm giá coupon nhà sản xuất ghi nhận | `SUM(coupon_disc)` | Tổng khoản giảm từ coupon nhà sản xuất theo nguồn |
+| Giảm giá đối ứng coupon ghi nhận | `SUM(coupon_match_disc)` | Tổng khoản giảm đối ứng coupon theo nguồn |
+
+Các tổng tiền sử dụng giá trị nguồn hợp lệ, hữu hạn và không âm.
+Dữ liệu hiện tại của `IN_SCOPE` không có giá trị thiếu, vô hạn hoặc âm
+trong các trường này. Nếu xuất hiện ở lần nạp sau, phải ghi nhận lỗi
+và công bố số dòng không được tính; không tự thay bằng 0.
+
+### 3. Điều kiện tính giá trị bán bình quân
+
+Tập dòng hợp lệ:
+
+```sql
+WHERE scope_status = 'IN_SCOPE'
+  AND quantity IS NOT NULL
+  AND quantity > 0
+  AND sales_value IS NOT NULL
+  AND sales_value >= 0

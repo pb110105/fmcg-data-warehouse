@@ -237,4 +237,98 @@ Trước khi chốt ETL, cần bổ sung:
 * Công thức giá và giảm giá, đặc biệt các dòng `coupon_disc > sales_value`.
 * Quy mô dữ liệu sau khi áp dụng phạm vi FMCG.
 
-Các mục này chưa được xem là đã hoàn thành chỉ dựa trên kết quả khảo sát sơ bộ.
+
+
+## Bổ sung: Kiểm tra số lượng, doanh số và giảm giá
+
+### 1. Phạm vi kiểm tra
+
+- Dữ liệu giao dịch: `data/raw/complete_journey/transactions.rds`.
+- Danh mục sản phẩm: `data/raw/complete_journey/products.rda`.
+- Phân loại FMCG: `data/landing/fmcg_classification_v1_3/product_scope.csv`.
+- Phiên bản quy tắc: `1.3-cosmetics-and-exclusions`.
+- Script kiểm tra: `src/check_source_price.R`.
+- Kết quả dưới đây áp dụng cho nhóm `IN_SCOPE`, gồm 1.271.042 dòng giao dịch.
+
+### 2. Kết quả kiểm tra
+
+| Nội dung | Kết quả |
+|---|---:|
+| Tổng `sales_value` | 3.419.948,46 USD |
+| Tổng `retail_disc` | 710.911,57 USD |
+| Tổng `coupon_disc` | 16.824,58 USD |
+| Tổng `coupon_match_disc` | 4.358,46 USD |
+| Giá trị thiếu, vô hạn hoặc âm trong năm trường được kiểm tra | 0 |
+| `quantity` có phần thập phân | 0 |
+| `quantity = 0` | 2.997 dòng |
+| `quantity = 0` và `sales_value > 0` | 19 dòng |
+| `quantity > 0` và `sales_value = 0` | 1.854 dòng |
+| `coupon_disc > sales_value` | 402 dòng |
+| `coupon_match_disc > coupon_disc` | 4 dòng |
+| `coupon_match_disc > retail_disc` | 5.224 dòng |
+| `coupon_match_disc > 0` và `coupon_disc = 0` | 0 dòng |
+| `quantity > 100` | 1 dòng |
+| `quantity` lớn nhất | 144 |
+
+Năm trường được kiểm tra gồm `quantity`, `sales_value`, `retail_disc`,
+`coupon_disc` và `coupon_match_disc`.
+
+Các nhóm bất thường có thể giao nhau; không cộng số dòng giữa các nhóm
+để suy ra tổng số dòng có vấn đề.
+
+### 3. Quy tắc xử lý
+
+| Trường hợp | Quy tắc |
+|---|---|
+| `quantity = 0` | Giữ bản ghi trong Fact; loại khỏi cả tử và mẫu của KPI giá trị bán bình quân trên đơn vị |
+| `quantity = 0`, doanh số dương | Giữ doanh số khi đối soát và tính tổng; gắn cờ kiểm tra |
+| `quantity > 0`, doanh số bằng 0 | Giữ bản ghi và gắn cờ; không tự kết luận là hàng tặng |
+| `coupon_disc > sales_value` | Giữ dữ liệu nguồn; gắn cờ; không dùng giá trị âm suy ra làm giá khách thực trả |
+| `coupon_match_disc > coupon_disc` | Gắn cờ kiểm tra; chưa coi là lỗi để xóa hoặc sửa |
+| `coupon_match_disc > retail_disc` | Ghi nhận để khảo sát; không áp đặt quan hệ lớn nhỏ giữa hai loại giảm giá |
+| `quantity > 100` | Gắn cờ số lượng cao; không tự xóa, cắt ngưỡng hoặc quy đổi đơn vị |
+| Thiếu hoặc không rõ `package_size` | Không tự suy diễn khối lượng, thể tích hoặc số lượng trong một gói |
+
+Dòng có `quantity = 144` thuộc sản phẩm ngô, với `package_size = '48 CT'`.
+Thông tin này chưa đủ để kết luận số lượng giao dịch là số gói hoặc để
+nhân/chia số lượng theo quy cách đóng gói.
+
+### 4. Cờ chất lượng dữ liệu đề xuất
+
+- `quantity_zero_flag`.
+- `quantity_zero_sales_positive_flag`.
+- `positive_quantity_zero_sales_flag`.
+- `coupon_above_sales_flag`.
+- `coupon_match_above_coupon_flag`.
+- `high_quantity_flag`: ngưỡng khảo sát ban đầu là `quantity > 100`.
+
+Các cờ phục vụ truy vết và phân tích độ nhạy. Chúng không đồng nghĩa
+với việc bản ghi chắc chắn sai.
+
+### 5. Giới hạn về đơn vị và công thức giá
+
+- `quantity` được giữ theo đơn vị ghi nhận trong nguồn.
+- Giá trị nguyên không chứng minh tất cả sản phẩm có cùng đơn vị đo.
+- Không tự quy đổi `quantity` thành kg, lít, gói hoặc thùng từ `package_size`.
+- `sales_value` không được đồng nhất với tiền khách thực trả.
+- Ba trường giảm giá được lưu và tổng hợp riêng.
+- Công thức `sales_value - coupon_disc` tạo ra 402 dòng âm trong `IN_SCOPE`;
+  chưa dùng làm KPI tiền khách thực trả.
+- Công thức `sales_value + retail_disc + coupon_match_disc` chưa được
+  xác nhận là giá trị trước giảm. Việc kết quả không âm không chứng minh
+  công thức đúng.
+- Không xóa dòng nguồn hoặc ép giá trị suy ra về 0 để làm công thức hợp lệ.
+
+### 6. Đối soát sau ETL
+
+Nếu nạp toàn bộ giao dịch `IN_SCOPE` v1.3, các mốc đối soát là:
+
+- Số dòng Fact: 1.271.042.
+- Tổng `sales_value`: 3.419.948,46 USD.
+- Tổng `retail_disc`: 710.911,57 USD.
+- Tổng `coupon_disc`: 16.824,58 USD.
+- Tổng `coupon_match_disc`: 4.358,46 USD.
+
+Việc lọc dòng để tính KPI giá không được làm thay đổi số dòng Fact
+hoặc tổng doanh số nguồn. Tiền được đối soát bằng cent hoặc kiểu
+`NUMERIC`, tránh sai số số thực.
