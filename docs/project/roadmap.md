@@ -6,7 +6,7 @@
 
 | Giai đoạn | Nội dung chính | Trạng thái |
 |---|---|---|
-| 1. Chuẩn bị | Khảo sát nguồn, phân loại FMCG, xác minh thời gian, xác định yêu cầu và KPI | Đã có kết quả chính; còn đồng bộ tài liệu |
+| 1. Chuẩn bị | Khảo sát nguồn, phân loại FMCG, xác minh thời gian, xác định yêu cầu và KPI | Đã có kết quả chính; Hoàn thành |
 | 2. Thiết kế | Thiết kế Fact–Dimension, Staging, mapping và DDL | Đã soạn tài liệu và SQL; đang rà soát, chưa kiểm thử DDL |
 | 3. Khởi tạo môi trường | Thiết lập Docker Compose, PostgreSQL và chạy DDL | Chưa bắt đầu |
 | 4. Xây dựng ETL | Nạp nguồn, làm sạch, nạp kho dữ liệu và đối soát | Chưa bắt đầu |

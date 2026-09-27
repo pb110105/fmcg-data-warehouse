@@ -137,7 +137,7 @@ xác nhận năm thu thập dữ liệu gốc.
 | DQ11 | Thiếu tình trạng nhà ở                                    | 233 dòng `demographics`           | Thiếu thuộc tính mô tả                      | Giữ NULL ở Staging; hiển thị nhóm chưa biết nếu sử dụng                                                                                       |
 | DQ12 | Thiếu tình trạng hôn nhân                                 | 137 dòng `demographics`           | Thiếu thuộc tính mô tả                      | Giữ NULL; không suy ra từ thành phần hộ                                                                                                       |
 | DQ13 | Số lượng có giá trị rất lớn                               | Giá trị lớn nhất là 89.638        | Cần xác minh đơn vị                         | Kiểm tra theo ngành hàng và sản phẩm. Không áp dụng một ngưỡng ngoại lệ chung để xóa mọi dòng                                                 |
-| DQ14 | Ngày hiển thị khác nhau giữa UTC và America/New_York | Toàn bộ 1.469.307 dòng thuộc năm 2017 theo America/New_York | Cần thống nhất múi giờ phân tích | Bảo toàn thời điểm nguồn; xác định ngày giao dịch theo America/New_York trước khi tạo date_key và đối chiếu week. Không coi timestamp hiển thị sang 01/01/2018 theo UTC là giao dịch năm 2018 theo giờ địa phương |                                               |
+| DQ14 | Ngày hiển thị khác nhau giữa UTC và America/New_York | Toàn bộ 1.469.307 dòng thuộc năm 2017 theo America/New_York | Cần thống nhất múi giờ phân tích | Bảo toàn thời điểm nguồn; xác định ngày giao dịch theo America/New_York trước khi tạo date_key và đối chiếu week. Không coi timestamp hiển thị sang 01/01/2018 theo UTC là giao dịch năm 2018 theo giờ địa phương |
 
 Nếu chỉ loại 4.872 dòng trùng hoàn toàn trong `coupons`, số liên kết còn lại là **111.332 dòng**, trước các bước xử lý khác.
 
@@ -306,10 +306,8 @@ Trước khi chốt ETL, cần bổ sung:
 * Mức bao phủ khuyến mãi trên giao dịch theo sản phẩm–cửa hàng–tuần.
 * Khóa sản phẩm trong `promotions` đối chiếu với `products`.
 * Phân bố bản ghi khuyến mãi có nhiều vị trí trên cùng tổ hợp.
-* Múi giờ timestamp và cách ánh xạ mã tuần.
 * Đơn vị của các sản phẩm có số lượng lớn.
 * Công thức giá và giảm giá, đặc biệt các dòng `coupon_disc > sales_value`.
-* Quy mô dữ liệu sau khi áp dụng phạm vi FMCG.
 
 
 

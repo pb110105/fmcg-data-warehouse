@@ -243,3 +243,5 @@ chưa được xác minh nên chưa đưa vào KPI chính thức.
 Dự án chưa có phiên bản chạy hoàn chỉnh. Lệnh cài đặt, khởi tạo cơ sở dữ liệu và chạy pipeline sẽ được bổ sung sau khi triển khai.
 
 Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành lên GitHub.
+Các mốc thời gian là giá trị trong phiên bản tệp đang sử dụng,
+không tự động xác nhận năm thu thập dữ liệu gốc.
