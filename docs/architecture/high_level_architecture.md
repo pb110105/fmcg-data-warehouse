@@ -61,48 +61,73 @@ Airflow điều phối việc xử lý bộ nguồn hiện có; lịch chạy kh
 
 Bảng khuyến mãi có hơn 20 triệu dòng. Thiết kế phải kiểm soát bộ nhớ khi đọc, tránh giữ nhiều bản sao DataFrame và sử dụng cơ chế nạp hàng loạt phù hợp.
 
-## 5. Mô hình đa chiều sơ bộ
+## 5. Mô hình đa chiều
 
-Hệ thống sử dụng nhiều Fact dùng chung Dimension. Mỗi Fact biểu diễn một nghiệp vụ riêng.
+Hệ thống gồm **3 Fact, 7 Dimension và 2 Bridge**.
+Các bảng dùng tên thống nhất với SQL DDL trong schema `dw`.
 
 ### 5.1. Các Fact
 
-| Fact                      | Grain                     | Nội dung                                              |
-| ------------------------- | ------------------------- | ----------------------------------------------------- |
-| `Fact_Sales`              | Sản phẩm–giỏ hàng         | Số lượng, giá trị bán và ba khoản giảm giá            |
-| `Fact_Promotion_Weekly`   | Sản phẩm–cửa hàng–tuần    | Cờ trưng bày và quảng cáo sau tổng hợp                |
-| `Fact_Coupon_Redemption`  | Hộ–coupon–chiến dịch–ngày | Ghi nhận sử dụng coupon                               |
-| `Fact_Campaign_Household` | Hộ–chiến dịch             | Fact không có số đo tiền, ghi nhận hộ nhận chiến dịch |
+| Fact | Grain | Nội dung |
+|---|---|---|
+| `fact_sales` | Giỏ hàng–sản phẩm | Số lượng, giá trị bán và ba khoản giảm giá nguồn |
+| `fact_promotion_weekly` | Sản phẩm–cửa hàng–tuần | Trạng thái trưng bày, quảng cáo và tập mã nguồn sau tổng hợp |
+| `fact_coupon_redemption` | Hộ–coupon–chiến dịch–ngày | Bản ghi sử dụng coupon; mỗi dòng có redemption_record_count = 1 |
 
-`Fact_Promotion_Weekly` thể hiện thông tin hỗ trợ tại cửa hàng, không chứng minh hộ đã nhìn thấy quảng cáo hoặc trưng bày.
+`fact_sales` và `fact_promotion_weekly` chỉ nạp sản phẩm IN_SCOPE
+theo phiên bản phân loại FMCG đã chọn.
+
+`fact_coupon_redemption` giữ toàn bộ bản ghi nguồn, không tự xác định
+sản phẩm thực tế được mua hoặc gắn nhãn chỉ FMCG.
+
+Thông tin khuyến mãi tại cửa hàng không chứng minh hộ gia đình
+đã nhìn thấy quảng cáo hoặc trưng bày.
 
 ### 5.2. Các Dimension
 
-| Dimension       | Nội dung                                                  |
-| --------------- | --------------------------------------------------------- |
-| `Dim_Date`      | Ngày, tháng, quý và năm                                   |
-| `Dim_Week`      | Mã tuần nguồn và khoảng ngày đã xác minh                  |
-| `Dim_Product`   | Sản phẩm, ngành hàng, quy cách và trạng thái phạm vi FMCG |
-| `Dim_Store`     | Mã cửa hàng; chưa có địa lý hoặc phân khúc                |
-| `Dim_Household` | Mã hộ và nhân khẩu học nếu có                             |
-| `Dim_Campaign`  | Loại và thời gian chiến dịch                              |
-| `Dim_Coupon`    | Mã coupon và thông tin nhận diện phù hợp nguồn            |
+| Dimension | Nội dung |
+|---|---|
+| `dim_date` | Ngày, tháng, quý, năm và thứ trong tuần |
+| `dim_week` | Tuần nguồn, khoảng ngày lịch và khoảng ngày thuộc phạm vi dữ liệu |
+| `dim_product` | Sản phẩm, ngành hàng, quy cách và trạng thái phạm vi FMCG |
+| `dim_store` | Mã cửa hàng; không có thông tin địa lý hoặc phân khúc |
+| `dim_household` | Mã hộ và nhân khẩu học nếu có |
+| `dim_campaign` | Mã, loại và thời gian chiến dịch |
+| `dim_coupon` | Coupon được định danh bằng campaign_id + coupon_upc |
 
-Ngày bắt đầu và kết thúc chiến dịch có thể tham chiếu `Dim_Date` theo các vai trò khác nhau.
+`dim_coupon.campaign_key` liên kết với `dim_campaign`.
 
-### 5.3. Quan hệ dự kiến
+Ngày bắt đầu và kết thúc chiến dịch được lưu bằng kiểu DATE
+trong `dim_campaign`; DDL hiện tại không tạo khóa ngoại
+từ hai cột này đến `dim_date`.
 
-| Fact                      | Dimension liên quan                   |
-| ------------------------- | ------------------------------------- |
-| `Fact_Sales`              | Date, Week, Product, Store, Household |
-| `Fact_Promotion_Weekly`   | Week, Product, Store                  |
-| `Fact_Coupon_Redemption`  | Date, Household, Campaign, Coupon     |
-| `Fact_Campaign_Household` | Household, Campaign                   |
+### 5.3. Quan hệ Fact–Dimension
 
-`basket_id` được giữ trong Fact bán hàng để truy vết và đếm giỏ hàng phân biệt.
+| Fact | Dimension liên kết trực tiếp |
+|---|---|
+| `fact_sales` | Date, Week, Product, Store, Household |
+| `fact_promotion_weekly` | Week, Product, Store |
+| `fact_coupon_redemption` | Date, Household, Campaign, Coupon |
 
-Bảng `Bridge_Coupon_Campaign_Product` lưu các liên kết coupon–chiến dịch–sản phẩm sau xử lý trùng.
+`basket_id` được giữ trong `fact_sales` để truy vết và đếm
+giỏ hàng phân biệt.
 
+Cặp coupon–chiến dịch trong `fact_coupon_redemption`
+phải nhất quán với chiến dịch của coupon trong `dim_coupon`.
+
+### 5.4. Các Bridge
+
+| Bridge | Khóa chính ghép | Ý nghĩa |
+|---|---|---|
+| `bridge_campaign_household` | campaign_key + household_key | Hộ gia đình nhận chiến dịch |
+| `bridge_coupon_product` | coupon_key + product_key | Sản phẩm đủ điều kiện áp dụng coupon |
+
+Quan hệ hộ–chiến dịch được triển khai bằng
+`bridge_campaign_household`, không tạo thêm một Fact riêng.
+
+Chiến dịch của coupon được xác định qua `dim_coupon`.
+Danh sách sản phẩm áp dụng coupon không cho biết sản phẩm
+thực tế trong từng lần sử dụng coupon.
 ## 6. Quy tắc tích hợp quan trọng
 
 ### Giao dịch và khuyến mãi
@@ -132,33 +157,50 @@ Bảng `Bridge_Coupon_Campaign_Product` lưu các liên kết coupon–chiến d
 | `mart_sales_overview`     | Fact bán hàng và Dimension                | Tổng quan bán hàng                          |
 | `mart_price_analysis`     | Fact bán hàng và sản phẩm                 | Giá trị bán trên đơn vị, các khoản giảm giá |
 | `mart_promotion_analysis` | Bán hàng tổng hợp tuần và khuyến mãi tuần | Bao phủ, so sánh trưng bày/quảng cáo        |
-| `mart_campaign_coupon`    | Fact hộ nhận chiến dịch và sử dụng coupon | Kết quả chiến dịch–coupon                   |
+| `mart_campaign_coupon` | `bridge_campaign_household`, `fact_coupon_redemption` và các Dimension liên quan | Phân tích hộ nhận chiến dịch và bản ghi sử dụng coupon |
 
 Mart chiến dịch–coupon phải phân biệt phạm vi toàn nguồn với phạm vi FMCG của các mart bán hàng.
 
 ## 8. Audit và khả năng chạy lại
 
-Mỗi lần chạy cần ghi:
+Schema `audit` lưu thông tin lần nạp nguồn, lần nạp kho dữ liệu,
+kết quả kiểm tra chất lượng và đối soát.
 
-* `run_id`.
-* Thời điểm bắt đầu và kết thúc.
-* Trạng thái thực hiện.
-* Tệp và bảng được xử lý.
-* Số dòng đầu vào, đầu ra.
-* Kết quả kiểm tra khóa và chất lượng.
-* Tổng các số đo cần đối soát.
-* Lý do loại, tổng hợp hoặc cách ly bản ghi.
+Các thông tin cần ghi gồm:
 
-Chạy lại cùng dữ liệu không được tạo bản ghi trùng. Cơ chế thay thế dữ liệu, upsert hoặc nạp theo batch sẽ được lựa chọn ở Giai đoạn 2.
+- Mã lần nạp nguồn `etl_batch_id`.
+- Thông tin lần nạp kho dữ liệu.
+- Thời điểm bắt đầu, kết thúc và trạng thái.
+- Tệp nguồn, mã kiểm tra nội dung tệp và phiên bản quy tắc FMCG.
+- Số dòng đầu vào, đầu ra.
+- Kết quả kiểm tra khóa và chất lượng.
+- Tổng số đo cần đối soát.
+- Lý do loại, tổng hợp hoặc chặn nạp bản ghi.
 
-## 9. Các quyết định còn mở
+Chạy lại cùng dữ liệu không được tạo bản ghi trùng.
+Chỉ công bố dữ liệu sau khi vượt qua kiểm tra bắt buộc và đối soát.
 
-* Phạm vi ngành hàng FMCG.
-* Ánh xạ tuần và xử lý múi giờ.
-* Đơn vị số lượng theo sản phẩm.
-* Công thức giá trước giảm và tiền khách trả.
-* Precision, scale của số tiền và số lượng.
-* Cách lưu lịch sử Dimension.
-* Cơ chế nạp và công bố dữ liệu sau kiểm tra.
+Thiết kế chi tiết được mô tả trong `staging_design.md`,
+`source_to_target_mapping.md` và SQL DDL.
+Khả năng chạy lại sẽ được kiểm thử khi triển khai ETL.
+## 9. Các quyết định thiết kế và nội dung còn mở
 
-Các nội dung trên phải được chốt trước khi triển khai phần ETL liên quan.
+### Đã xác định
+
+- Phạm vi FMCG dùng quy tắc v1.3; nhóm REVIEW chưa đưa vào KPI FMCG.
+- Ngày giao dịch được xác định theo múi giờ America/New_York.
+- Tuần nguồn được đối chiếu bằng quy tắc %W + 1.
+- Các Dimension nghiệp vụ áp dụng cập nhật Type 1,
+  không tự tạo lịch sử khi nguồn không cung cấp.
+- Kiểu dữ liệu và ràng buộc đã được mô tả trong SQL DDL.
+- Ba trường giảm giá được lưu và tổng hợp riêng.
+
+### Còn cần xác minh hoặc kiểm thử
+
+- Đơn vị vật lý của quantity khi cần so sánh giữa các sản phẩm.
+- Công thức giá trước giảm, tiền khách thực trả
+  và tỷ lệ giảm giá kết hợp.
+- Khả năng thực thi DDL trên PostgreSQL.
+- Khả năng chạy lại, phục hồi lỗi và công bố dữ liệu của ETL.
+
+Các công thức chưa xác minh không được đưa vào KPI chính thức.

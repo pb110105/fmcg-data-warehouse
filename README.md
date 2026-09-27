@@ -50,9 +50,13 @@ Bảng giao dịch có:
 * 2.469 hộ gia đình.
 * 457 mã cửa hàng.
 * 68.509 mã sản phẩm.
-* Timestamp từ 01/01/2017 đến 01/01/2018.
+* Ngày giao dịch từ 01/01/2017 đến 31/12/2017 theo múi giờ America/New_York.
+* Tuần nguồn có giá trị từ 1 đến 53, khớp quy tắc `%W + 1`
+  khi tính trên ngày giao dịch theo múi giờ này.
 
-Các mốc thời gian là giá trị trong phiên bản tệp đang sử dụng, không tự động xác nhận năm thu thập dữ liệu gốc.
+Một số timestamp khi hiển thị theo UTC thuộc ngày 01/01/2018,
+nhưng vẫn thuộc ngày 31/12/2017 tại America/New_York.
+Hệ thống sử dụng ngày theo America/New_York để phân tích bán hàng.
 
 Nguồn tham khảo:
 
@@ -102,29 +106,50 @@ Data Mart cung cấp dữ liệu cho Power BI. Apache Airflow điều phối pip
 
 Chi tiết xem `docs/architecture/high_level_architecture.md`.
 
-## 6. Mô hình đa chiều dự kiến
+## 6. Mô hình kho dữ liệu
 
-| Fact                      | Grain dự kiến                                                                   |
-| ------------------------- | ------------------------------------------------------------------------------- |
-| `Fact_Sales`              | Một sản phẩm trong một giỏ hàng                                                 |
-| `Fact_Promotion_Weekly`   | Một sản phẩm tại một cửa hàng trong một tuần, sau khi tổng hợp thông tin hỗ trợ |
-| `Fact_Coupon_Redemption`  | Một hộ–coupon–chiến dịch–ngày sử dụng theo nguồn                                |
-| `Fact_Campaign_Household` | Một hộ nhận một chiến dịch; Fact không có số đo tiền                            |
+Mô hình gồm **3 bảng Fact, 7 bảng Dimension và 2 bảng Bridge**.
+Các Fact dùng chung Dimension để phục vụ phân tích ở những mức chi tiết khác nhau.
 
-Các Dimension dự kiến:
+### 6.1. Các bảng Fact
 
-* `Dim_Date`.
-* `Dim_Week`.
-* `Dim_Product`.
-* `Dim_Store`.
-* `Dim_Household`.
-* `Dim_Campaign`.
-* `Dim_Coupon`.
+| Bảng | Một dòng biểu diễn |
+|---|---|
+| `fact_sales` | Một sản phẩm trong một giỏ hàng |
+| `fact_promotion_weekly` | Thông tin trưng bày và quảng cáo của một sản phẩm tại một cửa hàng trong một tuần |
+| `fact_coupon_redemption` | Một bản ghi sử dụng coupon theo hộ gia đình–coupon–chiến dịch–ngày |
 
-Bảng `Bridge_Coupon_Campaign_Product` biểu diễn quan hệ coupon–chiến dịch–sản phẩm.
+`fact_sales` và `fact_promotion_weekly` chỉ chứa sản phẩm thuộc IN_SCOPE
+theo phiên bản phân loại FMCG đã chọn.
 
-Đây là mô hình sơ bộ. Khóa, quan hệ, thuộc tính và cách lưu lịch sử sẽ được chốt ở Giai đoạn 2.
+`fact_coupon_redemption` giữ toàn bộ bản ghi sử dụng coupon nguồn.
+Không tự xác định sản phẩm được mua từ danh sách sản phẩm đủ điều kiện dùng coupon.
 
+### 6.2. Các bảng Dimension
+
+| Bảng | Nội dung |
+|---|---|
+| `dim_product` | Sản phẩm, ngành hàng, quy cách và trạng thái phân loại FMCG |
+| `dim_household` | Mã hộ gia đình và thông tin nhân khẩu học nếu có |
+| `dim_store` | Mã cửa hàng |
+| `dim_date` | Ngày và các thuộc tính lịch |
+| `dim_week` | Tuần nguồn và khoảng ngày tương ứng |
+| `dim_campaign` | Chiến dịch, loại chiến dịch và thời gian diễn ra |
+| `dim_coupon` | Coupon được định danh bằng cặp campaign_id–coupon_upc |
+
+### 6.3. Các bảng Bridge
+
+| Bảng | Quan hệ |
+|---|---|
+| `bridge_campaign_household` | Chiến dịch–hộ gia đình nhận chiến dịch |
+| `bridge_coupon_product` | Coupon–sản phẩm đủ điều kiện áp dụng |
+
+Chiến dịch của coupon được xác định qua `dim_coupon.campaign_key`.
+
+Không nối trực tiếp bảng Bridge vào Fact rồi cộng số đo nếu phép nối
+làm nhân bản dữ liệu.
+
+Thiết kế chi tiết được trình bày tại `docs/architecture/dimensional_model.md`.
 ## 7. Data Mart và dashboard
 
 | Data Mart                 | Nội dung                                           |
@@ -181,26 +206,32 @@ Số liệu và hướng xử lý được quản lý tập trung trong `docs/da
 
 ## 11. Trạng thái hiện tại
 
-Dự án đang **cập nhật Giai đoạn 1 theo Complete Journey**.
+Dự án đang ở **Giai đoạn 2 – Thiết kế hệ thống**.
 
 Đã thực hiện:
 
-* Giữ nguyên tên đề tài và mục tiêu chính.
-* Chuẩn bị đủ tám tệp nguồn.
-* Kiểm tra sơ bộ cấu trúc, số dòng, khóa và chất lượng.
-* Soạn nội dung cập nhật nguồn, Data Dictionary và đánh giá chất lượng.
-* Soạn câu hỏi nghiệp vụ và KPI.
-* Đề xuất kiến trúc và mô hình đa chiều.
+- Khảo sát tám bảng nguồn Complete Journey.
+- Xây dựng hồ sơ dữ liệu, Data Dictionary và đánh giá chất lượng.
+- Chốt phạm vi phân tích FMCG theo quy tắc v1.3; giữ nhóm REVIEW ngoài KPI FMCG.
+- Xác minh ngày giao dịch theo múi giờ America/New_York và quy tắc tuần nguồn.
+- Kiểm tra số lượng, doanh số và ba trường giảm giá; xác định các KPI được sử dụng.
+- Soạn thiết kế Fact–Dimension, Staging và ánh xạ nguồn–đích.
+- Viết bốn file SQL DDL tạo schema, bảng audit, Staging và kho dữ liệu.
 
-Còn cần hoàn thiện:
+Đang thực hiện:
 
-* Chốt phạm vi FMCG.
-* Đồng bộ các bản thảo vào project và rà soát tham chiếu.
-* Cập nhật kiểm kê nguồn và hướng dẫn dữ liệu.
-* Xác minh thời gian, đơn vị và các công thức giá còn mở.
-* Cập nhật phần báo cáo học thuật sau theo kế hoạch.
+- Rà soát tính nhất quán giữa README, kiến trúc, mapping, KPI và DDL.
+- Chuẩn bị kiểm thử DDL trên PostgreSQL.
 
-ETL, cơ sở dữ liệu, DAG và dashboard chưa được triển khai.
+Chưa thực hiện:
+
+- Triển khai môi trường Docker Compose và cơ sở dữ liệu.
+- Xây dựng ETL nạp Staging, Dimension và Fact.
+- Triển khai Airflow, Data Mart và dashboard Power BI.
+
+DDL hiện đã được soạn nhưng chưa xác nhận chạy thành công trên PostgreSQL.
+Các công thức giá trước giảm, tiền khách thực trả và tỷ lệ giảm giá kết hợp
+chưa được xác minh nên chưa đưa vào KPI chính thức.
 
 ## 12. Hướng dẫn sử dụng hiện tại
 

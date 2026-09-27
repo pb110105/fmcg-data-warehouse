@@ -48,26 +48,61 @@ Cờ này chỉ mô tả khoản giảm giá ghi trong giao dịch. Nó không t
 
 ### 2.2. Trạng thái trưng bày và quảng cáo
 
-Trước khi nối vào giao dịch, tổng hợp `promotions` thành đúng một dòng trên mỗi:
+Trước khi nối với giao dịch, tổng hợp `promotions` thành đúng
+một dòng trên mỗi `product_id + store_id + week`.
 
-`product_id + store_id + week`
+Giữ mã nguồn dưới dạng chuỗi và phân loại theo bảng sau:
 
-Trong mỗi tổ hợp:
+| Trường | Nhóm mã | Ý nghĩa phân loại |
+|---|---|---|
+| `display_location` | `0`, `A` | Không trưng bày đặc biệt |
+| `display_location` | `1`, `2`, `3`, `4`, `5`, `6`, `7`, `9` | Có trưng bày |
+| `mailer_location` | `0` | Không quảng cáo qua mailer |
+| `mailer_location` | `A`, `C`, `D`, `F`, `H`, `J`, `L`, `P`, `X`, `Z` | Có quảng cáo qua mailer |
+| Cả hai trường | NULL, chuỗi rỗng hoặc mã ngoài danh sách tương ứng | Chưa xác định; gắn cờ kiểm tra |
 
-* `has_display = 1` nếu có ít nhất một bản ghi có `display_location` khác `"0"`.
-* `has_mailer = 1` nếu có ít nhất một bản ghi có `mailer_location` khác `"0"`.
+Mã `A` có ý nghĩa khác nhau giữa hai trường.
+Không dùng điều kiện `khác "0"` để xác định có trưng bày.
 
-Việc diễn giải dựa trên miền mã nguồn hợp lệ. Mã ngoài miền phải được kiểm tra trước khi phân loại.
+#### Quy tắc tổng hợp cờ
 
-| `support_status`    | Điều kiện                                                                    |
-| ------------------- | ---------------------------------------------------------------------------- |
-| `NO_DISPLAY_MAILER` | Có bản ghi khớp; hai cờ đều bằng 0                                           |
-| `DISPLAY_ONLY`      | Có trưng bày, không có quảng cáo                                             |
-| `MAILER_ONLY`       | Có quảng cáo, không có trưng bày                                             |
-| `DISPLAY_MAILER`    | Có cả hai hình thức trong cùng sản phẩm–cửa hàng–tuần                        |
-| `UNKNOWN`           | Không tìm thấy bản ghi khuyến mãi tương ứng hoặc chưa đủ điều kiện phân loại |
+Áp dụng riêng cho `has_display` và `has_mailer`
+trong từng tổ hợp sản phẩm–cửa hàng–tuần:
 
-`NO_DISPLAY_MAILER` không có nghĩa là hoàn toàn không khuyến mãi: giao dịch vẫn có thể ghi nhận giảm giá hoặc coupon.
+- TRUE: có ít nhất một mã hợp lệ thuộc nhóm có hỗ trợ.
+- FALSE: tất cả mã đều hợp lệ và thuộc nhóm không hỗ trợ.
+- NULL: không có mã xác nhận có hỗ trợ, đồng thời có mã
+  thiếu hoặc chưa nhận diện.
+
+Đặt `promotion_code_unknown_flag = TRUE` nếu một trong hai
+trường có mã thiếu hoặc chưa nhận diện, kể cả khi đã xác định
+được cờ TRUE từ bản ghi khác trong cùng tổ hợp.
+
+Giữ tập mã nguồn và số dòng nguồn sau tổng hợp để truy vết.
+
+#### Phân loại trạng thái phục vụ KPI
+
+| `support_status` | Điều kiện |
+|---|---|
+| `NO_DISPLAY_MAILER` | Có bản ghi khớp, không có mã chưa biết và hai cờ đều FALSE |
+| `DISPLAY_ONLY` | Có bản ghi khớp, không có mã chưa biết; has_display = TRUE và has_mailer = FALSE |
+| `MAILER_ONLY` | Có bản ghi khớp, không có mã chưa biết; has_display = FALSE và has_mailer = TRUE |
+| `DISPLAY_MAILER` | Có bản ghi khớp, không có mã chưa biết và hai cờ đều TRUE |
+| `UNKNOWN` | Không có bản ghi khớp, có mã chưa biết hoặc có cờ NULL |
+
+Các dòng UNKNOWN được báo cáo riêng và không tham gia
+so sánh giữa bốn trạng thái hỗ trợ đã xác định.
+
+Phân biệt hai trường hợp:
+- Không tìm thấy bản ghi khuyến mãi tương ứng.
+- Có bản ghi khớp nhưng chưa phân loại được đầy đủ.
+
+Cả hai có thể hiển thị UNKNOWN, nhưng phải giữ nguyên lý do
+để tính KPI bao phủ và kiểm tra chất lượng.
+
+NO_DISPLAY_MAILER chỉ có nghĩa không ghi nhận trưng bày
+đặc biệt hoặc quảng cáo qua mailer; giao dịch vẫn có thể
+có giảm giá hoặc coupon.
 
 ### 2.3. Tập hợp lệ để phân tích giá đơn vị
 
@@ -94,7 +129,21 @@ KPI giá đơn vị sử dụng các dòng:
 
 Không cộng số giỏ hàng hoặc số hộ đã đếm riêng theo sản phẩm để suy ra số phân biệt toàn bộ.
 
-Tháng 01/2018 chỉ có phần đầu ngày trong dữ liệu hiện tại; không so sánh trực tiếp tổng tháng này với một tháng đầy đủ.
+KPI theo ngày, tháng, quý và năm sử dụng ngày giao dịch
+theo múi giờ America/New_York.
+
+Khoảng ngày giao dịch là 01/01/2017–31/12/2017.
+Không tạo tháng bán hàng 01/2018 từ cách hiển thị timestamp theo UTC.
+
+KPI theo tuần sử dụng week nguồn, đã được đối chiếu khớp
+với quy tắc `%W + 1` trên ngày giao dịch theo America/New_York.
+
+Tuần 1 chỉ có một ngày thuộc phạm vi dữ liệu, vì vậy không so sánh
+trực tiếp tổng doanh số tuần này với tuần có đủ bảy ngày quan sát.
+
+Ngày 25/12/2017 vẫn có trong Dim_Date và thuộc tuần 53,
+dù không có giao dịch nguồn. Khi tính bình quân theo ngày,
+phải nêu rõ mẫu số là số ngày lịch hay số ngày có giao dịch.
 
 ## 4. KPI giá và các khoản giảm giá
 

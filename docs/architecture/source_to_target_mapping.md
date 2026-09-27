@@ -262,20 +262,46 @@ và chặn công bố các bảng liên quan.
 
 ### 5.7. Dim_Coupon
 
+Nguồn: `staging.stg_coupons`.
+Đích: `dw.dim_coupon`.
+
+Lấy tập phân biệt `campaign_id + coupon_upc` để tạo Dimension.
+Không coi mỗi dòng nguồn là một coupon riêng vì một coupon
+có thể áp dụng cho nhiều sản phẩm.
+
 | Cột đích | Cột nguồn hoặc quy tắc |
 |---|---|
-| `coupon_key` | Khóa thay thế |
+| `coupon_key` | Khóa thay thế do PostgreSQL tự sinh |
+| `campaign_key` | Tra `dw.dim_campaign` bằng `campaign_id`; bắt buộc tìm được |
 | `campaign_id` | `stg_coupons.campaign_id` |
 | `coupon_upc` | `stg_coupons.coupon_upc` |
+| `etl_batch_id` | Mã lần nạp nguồn đang được xử lý |
+| `loaded_at` | Thời điểm nạp hoặc cập nhật bản ghi |
 
-Lấy tập phân biệt `campaign_id + coupon_upc`.
+Quy tắc:
 
-Không coi mỗi dòng của coupons là một coupon riêng,
-vì một coupon có thể liên kết nhiều sản phẩm.
+- Nạp `dim_campaign` trước `dim_coupon`.
+- Giữ `campaign_id` và `coupon_upc` dưới dạng chuỗi.
+- Khóa nghiệp vụ là `campaign_id + coupon_upc`.
+- `campaign_key` không được NULL.
+- Cặp `campaign_key + campaign_id` phải cùng tham chiếu
+  một bản ghi trong `dim_campaign`.
+- Không lọc coupon theo IN_SCOPE vì phân tích chiến dịch–coupon
+  sử dụng toàn bộ phạm vi nguồn.
 
-Mã coupon–chiến dịch trong coupon_redemptions không tìm được
-trong coupons phải được ghi lỗi trước khi nạp Fact đổi coupon.
+Xử lý lỗi:
 
+- Mã chiến dịch hoặc mã coupon thiếu, rỗng: ghi lỗi và chặn
+  công bố dữ liệu liên quan.
+- Không tìm được chiến dịch trong `dim_campaign`: ghi lỗi;
+  không tự tạo chiến dịch hoặc bỏ qua coupon.
+- Cặp `campaign_id + coupon_upc` trong `coupon_redemptions`
+  không tồn tại trong `dim_coupon`: ghi lỗi và chặn nạp
+  Fact đổi coupon liên quan.
+
+Quan hệ coupon–sản phẩm được lưu riêng trong
+`bridge_coupon_product`, không tạo nhiều dòng `dim_coupon`
+cho từng sản phẩm áp dụng.
 ## 6. Ánh xạ Fact_Sales
 
 Nguồn: `stg_transactions`, lọc sản phẩm IN_SCOPE theo phiên bản đã chọn.
