@@ -260,14 +260,30 @@ Chưa tính:
 
 ## 7. Quy tắc thời gian
 
-* KPI theo ngày, tháng, quý sử dụng ngày giao dịch sau khi xác minh cách xử lý múi giờ.
-* KPI trưng bày/quảng cáo sử dụng mã tuần nguồn đã được ánh xạ nhất quán.
-* Không thay `week` nguồn bằng tuần ISO nếu chưa đối chiếu.
-* KPI sử dụng coupon dùng `redemption_date`.
-* KPI-C04 toàn chiến dịch dùng toàn bộ thời gian quan sát của chiến dịch.
-* Nếu lọc sử dụng coupon theo một khoảng ngày, phải ghi rõ đây là tỷ lệ trong khoảng quan sát, không phải kết quả toàn chiến dịch.
-* Chiến dịch bắt đầu trước hoặc kết thúc sau khoảng dữ liệu sử dụng coupon phải được đánh dấu chưa quan sát đầy đủ; không xếp hạng ngang với chiến dịch được quan sát trọn vẹn mà không giải thích.
-
+- KPI bán hàng theo ngày, tháng, quý và năm sử dụng ngày giao dịch
+  theo múi giờ America/New_York.
+- Khoảng ngày giao dịch là 01/01/2017–31/12/2017.
+  Không tạo tháng bán hàng 01/2018 từ cách hiển thị timestamp theo UTC.
+- Giữ week nguồn, đã đối chiếu khớp quy tắc %W + 1
+  trên ngày giao dịch theo America/New_York; không thay bằng tuần ISO.
+- KPI trưng bày/quảng cáo nối theo sản phẩm–cửa hàng–tuần,
+  sử dụng cùng lịch tuần nguồn.
+- Tuần 1 chỉ có một ngày thuộc phạm vi dữ liệu.
+  Loại tuần này khỏi phép so sánh tổng doanh số giữa các tuần đầy đủ.
+- Ngày 25/12/2017 vẫn thuộc tuần 53 dù không có giao dịch.
+  Không lấy MIN/MAX ngày có bán để xác định ranh giới tuần.
+- Khi tính bình quân theo ngày, phải ghi rõ mẫu số là
+  số ngày lịch hay số ngày có giao dịch.
+- KPI sử dụng coupon dùng redemption_date, giữ nguyên ngày nguồn.
+- KPI-C04 toàn chiến dịch sử dụng các bản ghi trong thời gian
+  chiến dịch và phạm vi dữ liệu quan sát được.
+- Nếu lọc sử dụng coupon theo khoảng ngày, phải ghi rõ đây là
+  tỷ lệ trong khoảng quan sát, không phải kết quả toàn chiến dịch.
+- Chiến dịch bắt đầu trước hoặc kết thúc sau khoảng dữ liệu
+  sử dụng coupon phải được đánh dấu chưa quan sát đầy đủ.
+  Không xếp hạng ngang với chiến dịch được quan sát trọn vẹn
+  mà không giải thích.
+- Không cắt ngày bắt đầu hoặc kết thúc chiến dịch về năm 2017.
 ## 8. Điều kiện kiểm tra trước khi công bố
 
 * Tổng giá trị bán khớp kết quả đối soát ETL theo phạm vi.
@@ -310,7 +326,14 @@ và công bố số dòng không được tính; không tự thay bằng 0.
 
 ### 3. Điều kiện tính giá trị bán bình quân
 
-Tập dòng hợp lệ:
+KPI chỉ sử dụng các dòng:
+
+- Thuộc IN_SCOPE theo phiên bản phân loại đã chọn.
+- quantity và sales_value hợp lệ, hữu hạn.
+- quantity > 0.
+- sales_value >= 0.
+
+Điều kiện lọc trên tập dữ liệu đã kiểm tra tính hợp lệ:
 
 ```sql
 WHERE scope_status = 'IN_SCOPE'
@@ -318,3 +341,39 @@ WHERE scope_status = 'IN_SCOPE'
   AND quantity > 0
   AND sales_value IS NOT NULL
   AND sales_value >= 0
+```
+
+Công thức trên cùng tập dòng hợp lệ:
+
+```sql
+SUM(sales_value) / NULLIF(SUM(quantity), 0)
+```
+
+Quy tắc diễn giải:
+
+- Loại dòng quantity = 0 khỏi cả tử số và mẫu số của KPI này.
+- Vẫn giữ dòng quantity > 0 và sales_value = 0.
+- Không dùng AVG(sales_value / quantity) thay cho tỷ số hai tổng.
+- Ưu tiên tính theo cùng sản phẩm.
+- Không gọi kết quả là giá niêm yết hoặc tiền khách thực trả.
+- Không tự quy đổi quantity sang kg, lít hoặc số gói.
+
+Việc loại dòng khỏi KPI giá không làm mất dòng khỏi Fact.
+KPI tổng doanh số vẫn giữ các dòng hợp lệ có quantity = 0.
+
+### 4. Các công thức chưa sử dụng
+
+Chưa đưa vào KPI chính thức:
+
+- Tiền khách thực trả suy ra từ sales_value - coupon_disc.
+- Giá trị trước giảm suy ra từ
+  sales_value + retail_disc + coupon_match_disc.
+- Tổng giảm giá kết hợp cả ba trường.
+- Tỷ lệ giảm giá dựa trên giá trị trước giảm chưa xác minh.
+
+Công thức sales_value - coupon_disc tạo ra 402 dòng âm
+trong phạm vi IN_SCOPE. Không tự ép kết quả về 0
+hoặc xóa các dòng này khỏi Fact.
+
+Ba khoản giảm giá tiếp tục được lưu và tổng hợp riêng
+cho đến khi có đủ căn cứ xác minh công thức kết hợp.
