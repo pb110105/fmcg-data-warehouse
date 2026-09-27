@@ -74,6 +74,51 @@ Bảng `campaigns` không trùng cặp `campaign_id + household_id`. Bảng `cou
 | Hộ trong `demographics` thiếu `marital_status`                   |     137 |
 
 Một dòng có thể đồng thời thuộc nhiều vấn đề. Không cộng các số lượng trên để suy ra tổng số dòng lỗi.
+### 2.4. Kết quả xác minh thời gian và tuần
+
+| Kiểm tra | Kết quả |
+|---|---|
+| Kiểu dữ liệu transaction_timestamp trong R | POSIXct/POSIXt |
+| Thuộc tính múi giờ của timestamp | America/New_York |
+| Timestamp bị thiếu | 0 |
+| Week bị thiếu | 0 |
+| Thời điểm giao dịch đầu tiên | 2017-01-01 06:53:26 -0500 |
+| Thời điểm giao dịch cuối cùng | 2017-12-31 23:01:20 -0500 |
+| Dòng giao dịch thuộc năm 2017 theo America/New_York | 1.469.307 |
+| Ngày giao dịch thuộc nhiều week | 0 |
+| Dòng không khớp quy tắc %W + 1 | 0 |
+| Miền week trong transactions và promotions | 1–53 |
+| Mã tuần chỉ xuất hiện trong một trong hai bảng | Không có |
+| Ngày không có giao dịch trong năm 2017 | 25/12/2017 |
+
+Quy tắc thời gian:
+
+- Bảo toàn thời điểm nguồn; xác định ngày phân tích theo
+  múi giờ America/New_York.
+- Week giao dịch khớp quy tắc
+  `as.integer(format(local_date, "%W")) + 1L`.
+- Không thay week nguồn bằng tuần ISO hoặc quy tắc tuần bắt đầu Chủ nhật.
+- Một số timestamp hiển thị theo UTC sang ngày 01/01/2018,
+  nhưng vẫn thuộc ngày 31/12/2017 tại America/New_York.
+- Việc hai bảng có cùng miền week là kiểm tra mức bao phủ mã tuần,
+  không thay thế việc kiểm tra phép nối sản phẩm–cửa hàng–tuần.
+
+Ranh giới tuần:
+
+- Tuần 1: khoảng lịch 26/12/2016–01/01/2017;
+  phần thuộc phạm vi giao dịch chỉ gồm 01/01/2017.
+- Tuần 2: 02/01/2017–08/01/2017.
+- Tuần 53: 25/12/2017–31/12/2017.
+- Không lấy MIN/MAX ngày có giao dịch làm ranh giới tuần lịch.
+- Ngày 25/12/2017 vẫn có trong Dim_Date và thuộc tuần 53.
+  Không có giao dịch vào ngày này chưa đủ căn cứ kết luận
+  cửa hàng đóng cửa hoặc dữ liệu bị thiếu.
+
+Khoảng năm 2017 áp dụng cho giao dịch. Không cắt thời gian
+chiến dịch ngoài năm 2017.
+
+Các mốc thời gian trong phiên bản tệp đang sử dụng không tự động
+xác nhận năm thu thập dữ liệu gốc.
 
 ## 3. Vấn đề và quy tắc xử lý dự kiến
 
@@ -92,7 +137,7 @@ Một dòng có thể đồng thời thuộc nhiều vấn đề. Không cộng 
 | DQ11 | Thiếu tình trạng nhà ở                                    | 233 dòng `demographics`           | Thiếu thuộc tính mô tả                      | Giữ NULL ở Staging; hiển thị nhóm chưa biết nếu sử dụng                                                                                       |
 | DQ12 | Thiếu tình trạng hôn nhân                                 | 137 dòng `demographics`           | Thiếu thuộc tính mô tả                      | Giữ NULL; không suy ra từ thành phần hộ                                                                                                       |
 | DQ13 | Số lượng có giá trị rất lớn                               | Giá trị lớn nhất là 89.638        | Cần xác minh đơn vị                         | Kiểm tra theo ngành hàng và sản phẩm. Không áp dụng một ngưỡng ngoại lệ chung để xóa mọi dòng                                                 |
-| DQ14 | Ngày hiển thị khác nhau giữa UTC và America/New_York | Toàn bộ 1.469.307 dòng thuộc năm 2017 theo America/New_York | Cần thống nhất múi giờ phân tích | Bảo toàn thời điểm nguồn; xác định ngày giao dịch theo America/New_York trước khi tạo date_key và đối chiếu week. Không coi các timestamp sang 01/01/2018 khi hiển thị UTC là giao dịch năm 2018 theo giờ địa phương |                                               |
+| DQ14 | Ngày hiển thị khác nhau giữa UTC và America/New_York | Toàn bộ 1.469.307 dòng thuộc năm 2017 theo America/New_York | Cần thống nhất múi giờ phân tích | Bảo toàn thời điểm nguồn; xác định ngày giao dịch theo America/New_York trước khi tạo date_key và đối chiếu week. Không coi timestamp hiển thị sang 01/01/2018 theo UTC là giao dịch năm 2018 theo giờ địa phương |                                               |
 
 Nếu chỉ loại 4.872 dòng trùng hoàn toàn trong `coupons`, số liên kết còn lại là **111.332 dòng**, trước các bước xử lý khác.
 
@@ -137,30 +182,59 @@ Việc một hộ không có hồ sơ nhân khẩu học là giới hạn của 
 
 Dimension hộ gia đình cần được xây từ các mã hộ liên quan trong nguồn; nhân khẩu học được bổ sung khi có. Không dùng phép nối trong với `demographics` để làm mất giao dịch của hộ chưa có thông tin.
 
-### 4.5. Phạm vi FMCG chưa được chốt
+### 4.5. Phạm vi FMCG theo quy tắc v1.3
 
-Danh mục có nhiên liệu, dịch vụ và hàng hóa ngoài FMCG. Một số nhóm ngành hàng rộng cần xem xét đến cấp `product_category` hoặc `product_type`.
+Phạm vi triển khai sử dụng phiên bản phân loại
+`1.3-cosmetics-and-exclusions`.
 
-Quy tắc dự kiến:
+| Trạng thái | Số dòng giao dịch | Giá trị bán nguồn (USD) |
+|---|---:|---:|
+| IN_SCOPE | 1.271.042 | 3.419.948,46 |
+| OUT_OF_SCOPE | 20.691 | 395.944,98 |
+| REVIEW | 177.574 | 780.146,14 |
+| Tổng | 1.469.307 | 4.596.039,58 |
 
-* Phân loại thành `IN_SCOPE`, `OUT_OF_SCOPE` và `REVIEW`.
-* Giữ nguyên dữ liệu nguồn.
-* Đối soát riêng số dòng và doanh số theo ba trạng thái.
-* Không tự coi sản phẩm thiếu danh mục là thuộc FMCG.
-* Ghi quy tắc chi tiết trong `fmcg_scope.md`.
+Kết quả đối soát số dòng và tổng giá trị bán giữa ba trạng thái
+với dữ liệu nguồn đều PASS.
 
+Quy tắc áp dụng:
+
+- Chỉ IN_SCOPE được đưa vào Fact bán hàng và KPI FMCG.
+- OUT_OF_SCOPE và REVIEW vẫn được giữ trong Raw/Staging để truy vết.
+- REVIEW chưa được đưa vào KPI FMCG cho đến khi có quyết định
+  phân loại và phiên bản quy tắc mới.
+- Sản phẩm không có thông tin danh mục được giữ mã nguồn
+  và gán REVIEW; không tự coi là FMCG.
+- Lưu phiên bản quy tắc cùng thông tin lần nạp.
+- Khi thay đổi quy tắc, phải chạy lại phân loại, đối soát
+  và cập nhật dữ liệu đích bị ảnh hưởng.
+- Không cộng số giỏ hàng hoặc số hộ của ba nhóm để suy ra
+  tổng số phân biệt vì một giỏ hoặc hộ có thể thuộc nhiều nhóm.
+
+PASS xác nhận tính nhất quán của phép phân chia và tổng hợp,
+không tự chứng minh mọi quyết định phân loại đều đúng về nghiệp vụ.
+
+Chi tiết quy tắc được quản lý trong `fmcg_scope.md`.
 ### 4.6. Ý nghĩa giá và đơn vị cần thống nhất
 
 Không có trường `BASE_PRICE` trực tiếp. `sales_value` không luôn là tiền khách thực trả, và số lượng giữa các nhóm sản phẩm có thể không cùng đơn vị.
 
 Công thức giá, tiền khách trả và mức giảm giá phải được xác định trong tài liệu KPI trước khi triển khai. Không áp dụng máy móc công thức của Breakfast at the Frat.
 
-### 4.7. Thời gian và tên cột
+### 4.7. Quy ước thời gian và tên cột
 
-* Không mặc định `week` là tuần ISO.
-* Cần xác minh metadata múi giờ trước khi chuyển timestamp sang ngày.
-* Không coi ngày trong tệp là bằng chứng duy nhất về năm thu thập dữ liệu gốc.
-* Tệp nhân khẩu học dùng `kids_count`, trong khi một phần tài liệu nguồn ghi `kid_count`; triển khai theo tên cột thực tế.
+- Đã xác minh múi giờ America/New_York; sử dụng múi giờ này
+  khi xác định ngày giao dịch và tạo date_key.
+- Giữ week nguồn, đã đối chiếu khớp quy tắc %W + 1
+  trên toàn bộ giao dịch; không thay bằng tuần ISO.
+- Sử dụng tên múi giờ America/New_York thay vì cố định UTC-5,
+  để xử lý đúng thay đổi giờ mùa hè.
+- Không tự dịch thời điểm nguồn để ép ngày hiển thị;
+  chỉ chuyển cách biểu diễn sang múi giờ phân tích.
+- Không coi ngày trong tệp là bằng chứng duy nhất
+  về năm thu thập dữ liệu gốc.
+- Tệp nhân khẩu học dùng kids_count, trong khi một phần
+  tài liệu nguồn ghi kid_count; triển khai theo tên cột thực tế.
 
 ## 5. Cờ chất lượng và trạng thái dự kiến
 
