@@ -53,7 +53,7 @@ BEGIN
         WHERE etl_batch_id = v_batch
     ) THEN
         RAISE EXCEPTION 'Batch % không có giao dịch', v_batch;
-    END IF;n
+    END IF;
 
     -- =====================================================
     -- 2. TẠO LỊCH TUẦN KỲ VỌNG

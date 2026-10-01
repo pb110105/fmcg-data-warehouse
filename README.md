@@ -173,7 +173,10 @@ Thiết kế chi tiết được trình bày tại `docs/architecture/dimensiona
 | Power BI Desktop | Xây dựng báo cáo và dashboard            |
 | Git, GitHub      | Quản lý phiên bản và tiến độ             |
 
-Các phiên bản thư viện và cấu hình tài nguyên sẽ được chốt khi khởi tạo môi trường.
+Môi trường Python sử dụng `.venv`. Các thư viện được khai báo trong
+`requirements.txt`; phiên bản môi trường đã cài được ghi trong
+`requirements-lock.txt`. PostgreSQL được triển khai bằng Docker Compose.
+Airflow và Power BI thuộc các giai đoạn tiếp theo.
 
 ## 9. Cấu trúc thư mục
 
@@ -206,42 +209,71 @@ Số liệu và hướng xử lý được quản lý tập trung trong `docs/da
 
 ## 11. Trạng thái hiện tại
 
-Dự án đang ở **Giai đoạn 2 – Thiết kế hệ thống**.
+Đã hoàn thành **Giai đoạn 4 – Xây dựng ETL và nạp kho dữ liệu**.
+Chuẩn bị chuyển sang Giai đoạn 5 – Điều phối bằng Apache Airflow.
 
-Đã thực hiện:
+Các kết quả đã thực hiện:
 
 - Khảo sát tám bảng nguồn Complete Journey.
-- Xây dựng hồ sơ dữ liệu, Data Dictionary và đánh giá chất lượng.
-- Chốt phạm vi phân tích FMCG theo quy tắc v1.3; giữ nhóm REVIEW ngoài KPI FMCG.
-- Xác minh ngày giao dịch theo múi giờ America/New_York và quy tắc tuần nguồn.
-- Kiểm tra số lượng, doanh số và ba trường giảm giá; xác định các KPI được sử dụng.
-- Soạn thiết kế Fact–Dimension, Staging và ánh xạ nguồn–đích.
-- Viết bốn file SQL DDL tạo schema, bảng audit, Staging và kho dữ liệu.
+- Phân loại FMCG theo quy tắc `1.3-cosmetics-and-exclusions`.
+- Xác minh ngày giao dịch theo `America/New_York` và tuần nguồn.
+- Hoàn thiện thiết kế, mapping và triển khai DDL trên PostgreSQL.
+- Thiết lập môi trường Python và PostgreSQL bằng Docker Compose.
+- Nạp đủ tám bảng Staging; đối soát số dòng và kiểm tra chạy lại.
+- Nạp đủ 7 Dimension, 2 Bridge và 3 Fact.
+- Đối soát DW: 89 kiểm tra PASS, không có kiểm tra thất bại.
+- Kiểm tra chạy lại không nhân bản và giữ nguyên khóa Dimension.
+- Kiểm thử rollback và thử lại sau lỗi chương trình giả lập.
+- Chốt `dw_load_id=2`, nguồn `etl_batch_id=1`, trạng thái `SUCCESS`.
 
-Đang thực hiện:
+### Quy mô các bảng Fact
 
-- Rà soát tính nhất quán giữa README, kiến trúc, mapping, KPI và DDL.
-- Chuẩn bị kiểm thử DDL trên PostgreSQL.
+| Bảng | Số dòng | Phạm vi |
+|---|---:|---|
+| `fact_sales` | 1.271.042 | Sản phẩm IN_SCOPE |
+| `fact_promotion_weekly` | 17.485.242 | Sản phẩm IN_SCOPE, tổng hợp theo sản phẩm–cửa hàng–tuần |
+| `fact_coupon_redemption` | 2.102 | Toàn bộ nguồn sử dụng coupon |
 
-Chưa thực hiện:
+Tổng `sales_value` trong Fact Sales là 3.419.948,46 USD.
 
-- Triển khai môi trường Docker Compose và cơ sở dữ liệu.
-- Xây dựng ETL nạp Staging, Dimension và Fact.
-- Triển khai Airflow, Data Mart và dashboard Power BI.
+Có 971.514 dòng bán hàng không khớp bản ghi khuyến mãi theo
+sản phẩm–cửa hàng–tuần. Các dòng này phải được giữ ở nhóm
+“Không có thông tin khuyến mãi khớp”, không tự coi là không khuyến mãi.
 
-DDL hiện đã được soạn nhưng chưa xác nhận chạy thành công trên PostgreSQL.
-Các công thức giá trước giảm, tiền khách thực trả và tỷ lệ giảm giá kết hợp
-chưa được xác minh nên chưa đưa vào KPI chính thức.
+Kiểm thử phục hồi hiện bao gồm lỗi chương trình giả lập trước commit,
+rollback và thử lại; chưa kiểm thử tắt Docker đột ngột hoặc mất điện.
+
+Chưa triển khai:
+
+- DAG Airflow điều phối pipeline.
+- Data Mart và dashboard Power BI.
+- Đánh giá, báo cáo và trình bày cuối kỳ.
+
+Nhóm REVIEW tiếp tục nằm ngoài KPI FMCG.
+Các công thức giá trước giảm, tiền khách thực trả và tỷ lệ giảm giá
+kết hợp chưa xác minh tiếp tục nằm ngoài KPI chính thức.
 
 ## 12. Hướng dẫn sử dụng hiện tại
 
-1. Chuẩn bị đủ tám tệp tại `data/raw/complete_journey/`.
-2. Đọc hồ sơ nguồn và kiểm kê trong `docs/dataset/`.
-3. Đọc câu hỏi nghiệp vụ và định nghĩa KPI.
-4. Theo dõi các việc còn lại trong `docs/project/roadmap.md`.
+Thực hiện các lệnh dưới đây tại thư mục gốc project bằng Windows CMD.
 
-Dự án chưa có phiên bản chạy hoàn chỉnh. Lệnh cài đặt, khởi tạo cơ sở dữ liệu và chạy pipeline sẽ được bổ sung sau khi triển khai.
+### Chuẩn bị môi trường Python
 
-Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành lên GitHub.
-Các mốc thời gian là giá trị trong phiên bản tệp đang sử dụng,
-không tự động xác nhận năm thu thập dữ liệu gốc.
+```bat
+python -m venv .venv
+.venv\Scripts\activate.bat
+python -m pip install --index-url https://pypi.org/simple -r requirements-lock.txt
+python -m pip check
+
+### Khởi động PostgreSQL
+docker compose up -d postgres
+docker compose ps
+
+### Các lệnh vận hành
+python src/load_staging.py
+python src/dw_run.py status --dw-load-id 2
+
+### Các lệnh dùng cho lần nạp đang RUNNING, sau khi hoàn thành nạp Dimension, Bridge và Fact
+python src/verify_dw.py --dw-load-id <DW_LOAD_ID>
+python src/test_dw_recovery.py --dw-load-id <DW_LOAD_ID>
+python src/dw_run.py finish --dw-load-id <DW_LOAD_ID>
