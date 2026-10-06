@@ -8,7 +8,7 @@ Tiểu luận chuyên ngành với đề tài:
 
 Dự án sử dụng bộ dữ liệu **dunnhumby – The Complete Journey**, theo phiên bản được phân phối trong dự án R `completejourney`.
 
-Hệ thống dự kiến tiếp nhận dữ liệu nguồn, kiểm tra chất lượng, thực hiện ETL, tổ chức kho dữ liệu đa chiều và xây dựng Data Mart phục vụ dashboard Power BI.
+Hệ thống đã tiếp nhận dữ liệu nguồn, kiểm tra chất lượng và thực hiện ETL vào kho dữ liệu PostgreSQL. Các bước tiếp theo gồm điều phối bằng Airflow, xây dựng Data Mart và dashboard Power BI.
 
 Đề tài được thực hiện theo hình thức cá nhân.
 
@@ -91,11 +91,16 @@ Nguồn tham khảo:
 
 Bán hàng và giá được phân tích trong phạm vi FMCG đã chọn. Chỉ số chiến dịch–coupon hiện dùng toàn bộ nguồn liên quan và phải ghi rõ phạm vi, vì bản ghi sử dụng coupon không xác định sản phẩm thực tế đã mua.
 
-## 5. Kiến trúc dự kiến
+## 5. Kiến trúc hệ thống
 
 Các tệp RDA/RDS được đọc bằng Python và nạp vào PostgreSQL Staging. ETL thực hiện kiểm tra, chuẩn hóa, xác định phạm vi và ánh xạ khóa trước khi nạp Data Warehouse.
 
-Data Mart cung cấp dữ liệu cho Power BI. Apache Airflow điều phối pipeline; schema `audit` lưu trạng thái và kết quả kiểm tra.
+Đã triển khai luồng Raw → Staging → Data Warehouse;
+schema `audit` lưu trạng thái và kết quả kiểm tra.
+
+Apache Airflow, Data Mart và Power BI là các thành phần sẽ triển khai
+ở giai đoạn tiếp theo. Schema `mart` đã được tạo nhưng chưa có
+các bảng hoặc view phục vụ phân tích.
 
 | Schema    | Vai trò                               |
 | --------- | ------------------------------------- |
@@ -158,7 +163,8 @@ Thiết kế chi tiết được trình bày tại `docs/architecture/dimensiona
 | `mart_price_analysis`     | Giá trị bán trên đơn vị và các khoản giảm giá      |
 | `mart_promotion_analysis` | Mức bao phủ và so sánh trưng bày/quảng cáo         |
 | `mart_campaign_coupon`    | Hộ nhận chiến dịch và sử dụng coupon               |
-
+Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được triển khai.
+Dashboard Power BI sẽ được xây dựng sau khi hoàn thiện Data Mart.
 Định nghĩa chi tiết nằm trong `docs/requirements/kpi_definitions.md`.
 
 ## 8. Công nghệ dự kiến
@@ -194,7 +200,11 @@ Airflow và Power BI thuộc các giai đoạn tiếp theo.
 | `airflow/`                   | DAG và cấu hình liên quan             |
 | `dashboard/`                 | Tệp Power BI và tài liệu dashboard    |
 
-## 10. Các vấn đề cần xử lý
+## 10. Chất lượng dữ liệu và giới hạn
+
+Các vấn đề dưới đây đã được nhận diện. ETL đã áp dụng quy tắc
+loại trùng, tổng hợp, giữ giá trị thiếu hoặc gắn cờ phù hợp;
+các giới hạn của nguồn vẫn cần được xét khi phân tích.
 
 * Giao dịch có số lượng hoặc giá trị bán bằng 0.
 * Mã sản phẩm không khớp danh mục.
@@ -204,6 +214,10 @@ Airflow và Power BI thuộc các giai đoạn tiếp theo.
 * Nhân khẩu học chỉ bao phủ một phần hộ.
 * Phạm vi cửa hàng của giao dịch và khuyến mãi khác nhau.
 * Công thức giá cần phân biệt giá trị nhà bán lẻ nhận và tiền khách trả.
+
+Các vấn đề dưới đây đã được nhận diện. ETL đã áp dụng quy tắc
+loại trùng, tổng hợp, giữ giá trị thiếu hoặc gắn cờ phù hợp;
+các giới hạn của nguồn vẫn cần được xét khi phân tích.
 
 Số liệu và hướng xử lý được quản lý tập trung trong `docs/dataset/data_quality_findings.md`.
 
@@ -255,7 +269,8 @@ kết hợp chưa xác minh tiếp tục nằm ngoài KPI chính thức.
 
 ## 12. Hướng dẫn sử dụng hiện tại
 
-Thực hiện các lệnh dưới đây tại thư mục gốc project bằng Windows CMD.
+Thực hiện các lệnh tại thư mục gốc project bằng Windows CMD.
+Môi trường đã kiểm tra sử dụng Python 3.13.5.
 
 ### Chuẩn bị môi trường Python
 
@@ -264,16 +279,54 @@ python -m venv .venv
 .venv\Scripts\activate.bat
 python -m pip install --index-url https://pypi.org/simple -r requirements-lock.txt
 python -m pip check
+```
+
+Chuẩn bị `.env` theo `.env.example` và đặt đủ tám tệp nguồn tại
+`data/raw/complete_journey/`.
+
+Các bước nạp DW còn yêu cầu kết quả phân loại FMCG v1.3 tại
+`data/landing/fmcg_classification_v1_3/`, gồm `product_scope.csv`
+và `validation.json`.
 
 ### Khởi động PostgreSQL
+
+```bat
 docker compose up -d postgres
 docker compose ps
+```
 
-### Các lệnh vận hành
+Database đã triển khai có tên `fmcg_dw`, gồm các schema
+`staging`, `dw`, `mart` và `audit`.
+
+### Nạp Staging và xem trạng thái DW
+
+```bat
 python src/load_staging.py
 python src/dw_run.py status --dw-load-id 2
+```
 
-### Các lệnh dùng cho lần nạp đang RUNNING, sau khi hoàn thành nạp Dimension, Bridge và Fact
+ID 2 là lần nạp đã hoàn thành trên môi trường hiện tại;
+môi trường khác cần dùng ID thực tế.
+
+### Kiểm tra và chốt lần nạp
+
+Sau khi hoàn thành nạp Dimension, Bridge và Fact, chạy các lệnh sau
+với một lần nạp đang RUNNING:
+
+```bat
 python src/verify_dw.py --dw-load-id <DW_LOAD_ID>
 python src/test_dw_recovery.py --dw-load-id <DW_LOAD_ID>
 python src/dw_run.py finish --dw-load-id <DW_LOAD_ID>
+```
+
+Thay `<DW_LOAD_ID>` bằng số ID thực tế, không nhập dấu `<` và `>`.
+
+Lần nạp số 2 đã SUCCESS. Không sửa trạng thái về RUNNING chỉ để
+chạy lại các chương trình kiểm tra hoặc nạp dữ liệu.
+
+Pipeline hiện được chạy từng bước, chưa có DAG Airflow điều phối.
+Các lệnh trên là hướng dẫn vận hành một phần, chưa phải quy trình
+tái tạo đầy đủ kho dữ liệu từ database trống.
+
+Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành
+lên GitHub.
