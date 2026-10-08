@@ -391,3 +391,82 @@ cầu kết quả recovery PASS của lần chạy tương ứng.
 
 Lần chạy mới có nhật ký riêng; các lần SUCCESS trước đó được giữ
 nguyên. Không chuyển lần đã SUCCESS về RUNNING để chạy lại.
+
+
+### Xem nhật ký và kết quả đối soát trong Audit
+
+Nhật ký được lưu trong schema `audit` của database `fmcg_dw`.
+
+Mở PostgreSQL từ Windows CMD tại thư mục gốc project:
+
+```bat
+docker compose exec postgres psql -X -U fmcg_admin -d fmcg_dw
+```
+
+Các lệnh bên dưới chạy trong psql. Tắt phân trang để dễ xem:
+
+```sql
+\pset pager off
+```
+
+#### Lịch sử các lần nạp DW
+
+```sql
+SELECT dw_load_id,
+       source_batch_id,
+       status,
+       started_at,
+       finished_at,
+       error_message
+FROM audit.dw_load
+ORDER BY dw_load_id DESC;
+```
+
+#### Kết quả kiểm tra của một lần nạp
+
+Ví dụ dưới đây xem lần nạp số `2`. Thay bằng ID cần kiểm tra.
+
+```sql
+SELECT table_name,
+       rule_code,
+       severity,
+       status,
+       affected_rows,
+       checked_at
+FROM audit.data_quality_result
+WHERE dw_load_id = 2
+ORDER BY checked_at, dq_result_id;
+```
+
+#### Chi tiết đối soát nguồn và kho dữ liệu
+
+```sql
+SELECT metric_name,
+       source_value,
+       target_value,
+       status,
+       checked_at
+FROM audit.reconciliation_result
+WHERE dw_load_id = 2
+ORDER BY checked_at, metric_name;
+```
+
+`source_value` và `target_value` là các giá trị được đối chiếu.
+Nếu đã kiểm tra nhiều lần, truy vấn sẽ hiển thị lịch sử kết quả;
+dùng `checked_at` để phân biệt các lần kiểm tra.
+
+#### Lịch sử nạp tệp nguồn vào Staging
+
+Ví dụ xem batch nguồn số `1`:
+
+```sql
+SELECT *
+FROM audit.etl_file_load
+WHERE etl_batch_id = 1;
+```
+
+Thoát psql:
+
+```sql
+\q
+```
