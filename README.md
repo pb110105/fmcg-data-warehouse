@@ -327,3 +327,67 @@ tái tạo đầy đủ kho dữ liệu từ database trống.
 
 Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành
 lên GitHub.
+### Chạy ETL và đối soát kho dữ liệu
+
+Chạy tại thư mục gốc project bằng Windows CMD, sau khi kích hoạt
+môi trường `.venv` và khởi động PostgreSQL.
+cd /d C:\Users\DELL\Downloads\fmcg-data-warehouse
+.venv\Scripts\activate.bat
+#### 1. Khởi tạo lần chạy
+
+```bat
+python src/dw_run.py start --batch-id 1 --force-rerun
+```
+
+Lấy `dw_load_id` được trả về. Các lệnh bên dưới minh họa với ID `n`;
+thay bằng ID thực tế và dùng cùng ID trong toàn bộ quy trình.
+Batch `1` là batch nguồn trên môi trường hiện tại; môi trường khác
+phải dùng batch hợp lệ tương ứng.
+
+#### 2. Kiểm tra chất lượng và nạp lịch
+
+```bat
+python src/check_dw_quality.py --dw-load-id 3;
+docker compose exec -T postgres psql -X -U fmcg_admin -d fmcg_dw -v batch_id=1 < sql\etl\01_load_date_week.sql
+```
+
+#### 3. Nạp Dimension và Bridge
+
+```bat
+python src/load_dim_product.py --dw-load-id 3
+python src/load_dim_household_store.py --dw-load-id 3
+python src/load_dim_campaign_coupon.py --dw-load-id 3
+python src/load_bridges.py --dw-load-id 3
+```
+
+#### 4. Nạp Fact
+
+```bat
+python src/load_fact_sales.py --dw-load-id 3
+python src/load_fact_promotion_weekly.py --dw-load-id 3
+python src/load_fact_coupon_redemption.py --dw-load-id 3
+```
+
+#### 5. Đối soát, kiểm thử và chốt lần chạy
+
+```bat
+python src/verify_dw.py --dw-load-id 3
+python src/test_dw_recovery.py --dw-load-id 3
+python src/dw_run.py finish --dw-load-id 3
+python src/dw_run.py status --dw-load-id 3
+```
+
+Chạy lần lượt và dừng nếu một bước báo lỗi.
+
+Khi dữ liệu và quy tắc không thay đổi, các loader Python kỳ vọng
+không chèn thêm dòng (`INSERT=0`) và đối chiếu hai chiều không có
+khác biệt. Verify kỳ vọng đạt 89 kiểm tra, 0 lỗi; recovery đạt PASS;
+trạng thái cuối là SUCCESS. Chỉ xác nhận thành công sau khi kiểm tra
+kết quả thực tế.
+
+Recovery là bài kiểm thử riêng về chạy lại và rollback transaction,
+không phải bước biến đổi dữ liệu nghiệp vụ. Cơ chế `finish` hiện yêu
+cầu kết quả recovery PASS của lần chạy tương ứng.
+
+Lần chạy mới có nhật ký riêng; các lần SUCCESS trước đó được giữ
+nguyên. Không chuyển lần đã SUCCESS về RUNNING để chạy lại.
