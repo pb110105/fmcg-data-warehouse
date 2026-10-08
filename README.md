@@ -156,7 +156,7 @@ làm nhân bản dữ liệu.
 
 Thiết kế chi tiết được trình bày tại `docs/architecture/dimensional_model.md`.
 ## 7. Data Mart và dashboard
-
+Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được triển khai.
 | Data Mart                 | Nội dung                                           |
 | ------------------------- | -------------------------------------------------- |
 | `mart_sales_overview`     | Giá trị bán, giỏ hàng, hộ mua và đóng góp doanh số |
@@ -167,7 +167,7 @@ Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được tr
 Dashboard Power BI sẽ được xây dựng sau khi hoàn thiện Data Mart.
 Định nghĩa chi tiết nằm trong `docs/requirements/kpi_definitions.md`.
 
-## 8. Công nghệ dự kiến
+## 8. Công nghệ sử dụng và kế hoạch triển khai
 
 | Công nghệ        | Vai trò                                  |
 | ---------------- | ---------------------------------------- |
@@ -215,9 +215,6 @@ các giới hạn của nguồn vẫn cần được xét khi phân tích.
 * Phạm vi cửa hàng của giao dịch và khuyến mãi khác nhau.
 * Công thức giá cần phân biệt giá trị nhà bán lẻ nhận và tiền khách trả.
 
-Các vấn đề dưới đây đã được nhận diện. ETL đã áp dụng quy tắc
-loại trùng, tổng hợp, giữ giá trị thiếu hoặc gắn cờ phù hợp;
-các giới hạn của nguồn vẫn cần được xét khi phân tích.
 
 Số liệu và hướng xử lý được quản lý tập trung trong `docs/dataset/data_quality_findings.md`.
 

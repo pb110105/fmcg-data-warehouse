@@ -25,7 +25,7 @@ def acquire_lock(conn):
         )
 
 
-def start_run(conn, batch_id, scope_dir, raw_dir):
+def start_run(conn, batch_id, scope_dir, raw_dir, force_rerun=False):
     # Khóa được giữ đến khi đóng kết nối.
     acquire_lock(conn)
 
@@ -96,7 +96,7 @@ def start_run(conn, batch_id, scope_dir, raw_dir):
             identity,
         ).fetchone()
 
-        if successful:
+        if successful and not force_rerun:
             return successful[0], "SKIP", "SUCCESS"
 
         dw_load_id = conn.execute(
@@ -476,6 +476,11 @@ def main():
     start = commands.add_parser("start")
     start.add_argument("--batch-id", type=int, required=True)
     start.add_argument(
+        "--force-rerun",
+        action="store_true",
+        help="Tạo lần nạp mới dù cùng đầu vào đã SUCCESS.",
+    )
+    start.add_argument(
         "--scope-dir",
         type=Path,
         default=ROOT / "data/landing/fmcg_classification_v1_3",
@@ -505,6 +510,7 @@ def main():
                 args.batch_id,
                 args.scope_dir.resolve(),
                 args.raw_dir.resolve(),
+                force_rerun=args.force_rerun,
             )
             print(
                 f"\n{action} | dw_load_id={run_id} | {state}"
