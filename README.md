@@ -163,7 +163,7 @@ Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được tr
 | `mart_price_analysis`     | Giá trị bán trên đơn vị và các khoản giảm giá      |
 | `mart_promotion_analysis` | Mức bao phủ và so sánh trưng bày/quảng cáo         |
 | `mart_campaign_coupon`    | Hộ nhận chiến dịch và sử dụng coupon               |
-Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được triển khai.
+
 Dashboard Power BI sẽ được xây dựng sau khi hoàn thiện Data Mart.
 Định nghĩa chi tiết nằm trong `docs/requirements/kpi_definitions.md`.
 
@@ -264,12 +264,17 @@ Nhóm REVIEW tiếp tục nằm ngoài KPI FMCG.
 Các công thức giá trước giảm, tiền khách thực trả và tỷ lệ giảm giá
 kết hợp chưa xác minh tiếp tục nằm ngoài KPI chính thức.
 
-## 12. Hướng dẫn sử dụng hiện tại
+## 12. Sử dụng và kiểm thử
 
-Thực hiện các lệnh tại thư mục gốc project bằng Windows CMD.
-Môi trường đã kiểm tra sử dụng Python 3.13.5.
+Các lệnh `bat` chạy trong Windows CMD tại thư mục gốc project.
+Các lệnh `sql` chạy trong psql.
 
-### Chuẩn bị môi trường Python
+Hướng dẫn áp dụng cho hệ thống đã có Staging và DW,
+không phải quy trình dựng database từ đầu.
+
+### 12.1. Chuẩn bị môi trường
+
+Chỉ thực hiện khi chưa có `.venv`:
 
 ```bat
 python -m venv .venv
@@ -278,97 +283,56 @@ python -m pip install --index-url https://pypi.org/simple -r requirements-lock.t
 python -m pip check
 ```
 
-Chuẩn bị `.env` theo `.env.example` và đặt đủ tám tệp nguồn tại
-`data/raw/complete_journey/`.
+Chuẩn bị `.env` theo `.env.example`, tám tệp nguồn trong
+`data/raw/complete_journey/` và kết quả phân loại v1.3 gồm
+`product_scope.csv`, `validation.json` trong
+`data/landing/fmcg_classification_v1_3/`.
 
-Các bước nạp DW còn yêu cầu kết quả phân loại FMCG v1.3 tại
-`data/landing/fmcg_classification_v1_3/`, gồm `product_scope.csv`
-và `validation.json`.
+Không đưa `.env`, mật khẩu hoặc dữ liệu nguồn lên GitHub.
 
-### Khởi động PostgreSQL
+### 12.2. Khởi động
+
+Mở Docker Desktop, sau đó chạy:
 
 ```bat
+.venv\Scripts\activate.bat
 docker compose up -d postgres
 docker compose ps
 ```
 
-Database đã triển khai có tên `fmcg_dw`, gồm các schema
-`staging`, `dw`, `mart` và `audit`.
+### 12.3. Chạy lại ETL
 
-### Nạp Staging và xem trạng thái DW
-
-```bat
-python src/load_staging.py
-python src/dw_run.py status --dw-load-id 2
-```
-
-ID 2 là lần nạp đã hoàn thành trên môi trường hiện tại;
-môi trường khác cần dùng ID thực tế.
-
-### Kiểm tra và chốt lần nạp
-
-Sau khi hoàn thành nạp Dimension, Bridge và Fact, chạy các lệnh sau
-với một lần nạp đang RUNNING:
-
-```bat
-python src/verify_dw.py --dw-load-id <DW_LOAD_ID>
-python src/test_dw_recovery.py --dw-load-id <DW_LOAD_ID>
-python src/dw_run.py finish --dw-load-id <DW_LOAD_ID>
-```
-
-Thay `<DW_LOAD_ID>` bằng số ID thực tế, không nhập dấu `<` và `>`.
-
-Lần nạp số 2 đã SUCCESS. Không sửa trạng thái về RUNNING chỉ để
-chạy lại các chương trình kiểm tra hoặc nạp dữ liệu.
-
-Pipeline hiện được chạy từng bước, chưa có DAG Airflow điều phối.
-Các lệnh trên là hướng dẫn vận hành một phần, chưa phải quy trình
-tái tạo đầy đủ kho dữ liệu từ database trống.
-
-Không đưa dữ liệu nguồn, mật khẩu, `.env` hoặc dữ liệu vận hành
-lên GitHub.
-### Chạy ETL và đối soát kho dữ liệu
-
-Chạy tại thư mục gốc project bằng Windows CMD, sau khi kích hoạt
-môi trường `.venv` và khởi động PostgreSQL.
-cd /d C:\Users\DELL\Downloads\fmcg-data-warehouse
-.venv\Scripts\activate.bat
-#### 1. Khởi tạo lần chạy
+Dùng lại batch nguồn `1` đã SUCCESS:
 
 ```bat
 python src/dw_run.py start --batch-id 1 --force-rerun
 ```
 
-Lấy `dw_load_id` được trả về. Các lệnh bên dưới minh họa với ID `n`;
-thay bằng ID thực tế và dùng cùng ID trong toàn bộ quy trình.
-Batch `1` là batch nguồn trên môi trường hiện tại; môi trường khác
-phải dùng batch hợp lệ tương ứng.
+Lấy `dw_load_id` trả về và thay số `3` trong tất cả lệnh dưới
+bằng ID thực tế. Nếu có lần RUNNING cùng đầu vào, chương trình
+dùng lại lần đó.
 
-#### 2. Kiểm tra chất lượng và nạp lịch
+Chạy từng lệnh; dừng nếu một bước báo lỗi.
 
 ```bat
-python src/check_dw_quality.py --dw-load-id 3;
+python src/check_dw_quality.py --dw-load-id 3
+
 docker compose exec -T postgres psql -X -U fmcg_admin -d fmcg_dw -v batch_id=1 < sql\etl\01_load_date_week.sql
-```
 
-#### 3. Nạp Dimension và Bridge
-
-```bat
 python src/load_dim_product.py --dw-load-id 3
 python src/load_dim_household_store.py --dw-load-id 3
 python src/load_dim_campaign_coupon.py --dw-load-id 3
 python src/load_bridges.py --dw-load-id 3
-```
 
-#### 4. Nạp Fact
-
-```bat
 python src/load_fact_sales.py --dw-load-id 3
 python src/load_fact_promotion_weekly.py --dw-load-id 3
 python src/load_fact_coupon_redemption.py --dw-load-id 3
 ```
 
-#### 5. Đối soát, kiểm thử và chốt lần chạy
+Batch `1` là batch của môi trường hiện tại; môi trường khác
+phải dùng batch hợp lệ tương ứng.
+
+### 12.4. Đối soát và chốt lần chạy
 
 ```bat
 python src/verify_dw.py --dw-load-id 3
@@ -377,87 +341,71 @@ python src/dw_run.py finish --dw-load-id 3
 python src/dw_run.py status --dw-load-id 3
 ```
 
-Chạy lần lượt và dừng nếu một bước báo lỗi.
+Kết quả kỳ vọng:
 
-Khi dữ liệu và quy tắc không thay đổi, các loader Python kỳ vọng
-không chèn thêm dòng (`INSERT=0`) và đối chiếu hai chiều không có
-khác biệt. Verify kỳ vọng đạt 89 kiểm tra, 0 lỗi; recovery đạt PASS;
-trạng thái cuối là SUCCESS. Chỉ xác nhận thành công sau khi kiểm tra
-kết quả thực tế.
+- Dữ liệu không đổi: các loader Python báo INSERT=0,
+  đối chiếu hai chiều có 0 khác biệt.
+- Verify: 89 kiểm tra, 0 lỗi.
+- Recovery: PASS.
+- Trạng thái cuối: SUCCESS.
 
-Recovery là bài kiểm thử riêng về chạy lại và rollback transaction,
-không phải bước biến đổi dữ liệu nghiệp vụ. Cơ chế `finish` hiện yêu
-cầu kết quả recovery PASS của lần chạy tương ứng.
+Recovery kiểm thử chạy lại và rollback transaction; cơ chế finish
+hiện yêu cầu kết quả này đạt PASS. Chưa kiểm thử mất điện hoặc
+tắt Docker đột ngột.
 
-Lần chạy mới có nhật ký riêng; các lần SUCCESS trước đó được giữ
-nguyên. Không chuyển lần đã SUCCESS về RUNNING để chạy lại.
+Nếu chạy loader sau verify, phải verify lại trước finish.
+Không đổi lần SUCCESS về RUNNING hoặc xóa DW để chạy lại.
 
+### 12.5. Xem dữ liệu và Audit
 
-### Xem nhật ký và kết quả đối soát trong Audit
-
-Nhật ký được lưu trong schema `audit` của database `fmcg_dw`.
-
-Mở PostgreSQL từ Windows CMD tại thư mục gốc project:
+Mở psql từ CMD:
 
 ```bat
 docker compose exec postgres psql -X -U fmcg_admin -d fmcg_dw
 ```
 
-Các lệnh bên dưới chạy trong psql. Tắt phân trang để dễ xem:
+Xem bảng, cấu trúc và dữ liệu trong psql:
 
 ```sql
 \pset pager off
+\dt staging.*
+\dt dw.*
+\dt audit.*
+
+\d dw.fact_sales
+
+SELECT * FROM dw.fact_sales LIMIT 5;
+SELECT * FROM dw.dim_product LIMIT 5;
 ```
 
-#### Lịch sử các lần nạp DW
+Xem lịch sử các lần nạp:
 
 ```sql
-SELECT dw_load_id,
-       source_batch_id,
-       status,
-       started_at,
-       finished_at,
-       error_message
+SELECT dw_load_id, source_batch_id, status,
+       started_at, finished_at, error_message
 FROM audit.dw_load
 ORDER BY dw_load_id DESC;
 ```
 
-#### Kết quả kiểm tra của một lần nạp
-
-Ví dụ dưới đây xem lần nạp số `2`. Thay bằng ID cần kiểm tra.
+Xem kết quả kiểm tra và đối soát của ID cần kiểm tra
+(ví dụ ID `3`):
 
 ```sql
-SELECT table_name,
-       rule_code,
-       severity,
-       status,
-       affected_rows,
-       checked_at
+SELECT rule_code, severity, status, affected_rows, checked_at
 FROM audit.data_quality_result
-WHERE dw_load_id = 2
+WHERE dw_load_id = 3
 ORDER BY checked_at, dq_result_id;
-```
 
-#### Chi tiết đối soát nguồn và kho dữ liệu
-
-```sql
-SELECT metric_name,
-       source_value,
-       target_value,
-       status,
-       checked_at
+SELECT metric_name, source_value, target_value, status, checked_at
 FROM audit.reconciliation_result
-WHERE dw_load_id = 2
+WHERE dw_load_id = 3
 ORDER BY checked_at, metric_name;
 ```
 
-`source_value` và `target_value` là các giá trị được đối chiếu.
-Nếu đã kiểm tra nhiều lần, truy vấn sẽ hiển thị lịch sử kết quả;
-dùng `checked_at` để phân biệt các lần kiểm tra.
+Truy vấn hiển thị lịch sử; dùng `checked_at` để phân biệt các lần
+kiểm tra.
 
-#### Lịch sử nạp tệp nguồn vào Staging
-
-Ví dụ xem batch nguồn số `1`:
+Xem nhật ký nạp nguồn:
 
 ```sql
 SELECT *
@@ -470,3 +418,17 @@ Thoát psql:
 ```sql
 \q
 ```
+
+### 12.6. Khi gặp lỗi
+
+Dừng và kiểm tra trạng thái:
+
+```bat
+python src/dw_run.py status --dw-load-id 3
+```
+
+- RUNNING: sửa nguyên nhân rồi chạy lại bước lỗi.
+- FAILED: sửa nguyên nhân, tạo lần mới và dùng ID mới.
+- SUCCESS: lần đã đóng; muốn chạy lại phải tạo lần mới.
+
+Giữ nguyên dữ liệu đã commit và lịch sử các lần chạy.
