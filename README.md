@@ -156,7 +156,9 @@ làm nhân bản dữ liệu.
 
 Thiết kế chi tiết được trình bày tại `docs/architecture/dimensional_model.md`.
 ## 7. Data Mart và dashboard
+
 Các Data Mart dưới đây thuộc thiết kế dự kiến, chưa được triển khai.
+
 | Data Mart                 | Nội dung                                           |
 | ------------------------- | -------------------------------------------------- |
 | `mart_sales_overview`     | Giá trị bán, giỏ hàng, hộ mua và đóng góp doanh số |

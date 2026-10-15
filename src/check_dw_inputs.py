@@ -107,7 +107,7 @@ def check_inputs(conn, batch_id, scope_dir, raw_dir):
         manifest_hash == batch[2],
         "Manifest batch không khớp hash của tám file trong audit",
     )
-    print("PASS | Tám file và manifest trong audit")
+    print("PASS | Nhật ký nạp nguồn | Đủ 8 tệp, số dòng khớp, mã kiểm tra bộ nguồn khớp")
 
     # Đối chiếu hai file dùng để tạo kết quả phân loại.
     for filename in ("products.rda", "transactions.rds"):
