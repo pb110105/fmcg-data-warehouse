@@ -310,25 +310,25 @@ Dùng lại batch nguồn `1` đã SUCCESS:
 python src/dw_run.py start --batch-id 1 --force-rerun
 ```
 
-Lấy `dw_load_id` trả về và thay số `3` trong tất cả lệnh dưới
+Lấy `dw_load_id` trả về và thay số `id` trong tất cả lệnh dưới
 bằng ID thực tế. Nếu có lần RUNNING cùng đầu vào, chương trình
 dùng lại lần đó.
 
 Chạy từng lệnh; dừng nếu một bước báo lỗi.
 
 ```bat
-python src/check_dw_quality.py --dw-load-id 3
+python src/check_dw_quality.py --dw-load-id `id`
 
 docker compose exec -T postgres psql -X -U fmcg_admin -d fmcg_dw -v batch_id=1 < sql\etl\01_load_date_week.sql
 
-python src/load_dim_product.py --dw-load-id 3
-python src/load_dim_household_store.py --dw-load-id 3
-python src/load_dim_campaign_coupon.py --dw-load-id 3
-python src/load_bridges.py --dw-load-id 3
+python src/load_dim_product.py --dw-load-id `id`
+python src/load_dim_household_store.py --dw-load-id `id`
+python src/load_dim_campaign_coupon.py --dw-load-id `id`
+python src/load_bridges.py --dw-load-id `id`
 
-python src/load_fact_sales.py --dw-load-id 3
-python src/load_fact_promotion_weekly.py --dw-load-id 3
-python src/load_fact_coupon_redemption.py --dw-load-id 3
+python src/load_fact_sales.py --dw-load-id `id`
+python src/load_fact_promotion_weekly.py --dw-load-id `id`
+python src/load_fact_coupon_redemption.py --dw-load-id `id`
 ```
 
 Batch `1` là batch của môi trường hiện tại; môi trường khác
@@ -337,10 +337,10 @@ phải dùng batch hợp lệ tương ứng.
 ### 12.4. Đối soát và chốt lần chạy
 
 ```bat
-python src/verify_dw.py --dw-load-id 3
-python src/test_dw_recovery.py --dw-load-id 3
-python src/dw_run.py finish --dw-load-id 3
-python src/dw_run.py status --dw-load-id 3
+python src/verify_dw.py --dw-load-id `id`
+python src/test_dw_recovery.py --dw-load-id `id`
+python src/dw_run.py finish --dw-load-id `id`
+python src/dw_run.py status --dw-load-id `id`
 ```
 
 Kết quả kỳ vọng:

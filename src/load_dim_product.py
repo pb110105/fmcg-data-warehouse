@@ -93,7 +93,7 @@ def load_product(conn, run_id, scope_dir, raw_dir):
             dq == (57, 57, 0),
             f"Chưa có bộ 57 kiểm tra DQ đầy đủ, không lỗi chặn: {dq}",
         )
-        print("PASS | DQ đầu vào | 57 kiểm tra, không lỗi chặn")
+        print("PASS | Data Quality đầu vào | 57 kiểm tra, không lỗi chặn")
 
         create_normalized_views(conn, batch_id)
 

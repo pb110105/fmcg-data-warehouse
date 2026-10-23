@@ -167,7 +167,7 @@ def check_inputs(conn, batch_id, scope_dir, raw_dir):
         scope["scope_reason"].str.strip().ne("").all(),
         "CSV có phân loại thiếu lý do",
     )
-    print(f"PASS | Cấu trúc phân loại | {len(scope):,} sản phẩm")
+    print(f"PASS | File phân loại (product_scope.csv) đúng định dạng | {len(scope):,} sản phẩm")
 
     # Chỉ tạo bảng tạm trong phiên để đối chiếu với Staging.
     conn.execute(
@@ -249,7 +249,7 @@ def check_inputs(conn, batch_id, scope_dir, raw_dir):
         product_count == validation.get("lookup_products"),
         "Số dòng products khác validation.json",
     )
-    print(f"PASS | Danh mục nguồn | {product_count:,} dòng")
+    print(f"PASS | Danh mục sản phẩm nguồn | {product_count:,} dòng")
 
     # 2. CSV phải bao phủ đúng hợp mã products và transactions.
     missing, extra = conn.execute(
