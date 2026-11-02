@@ -1,6 +1,6 @@
 import argparse
 from pathlib import Path
-
+from time import perf_counter
 from psycopg.types.json import Jsonb
 
 from load_staging import ROOT, connect_db
@@ -23,8 +23,14 @@ COLUMNS = [
     "etl_batch_id",
 ]
 
-
+def product_progress(message):
+    print(
+        "\r" + f"ĐANG XỬ LÝ | Dim_Product | {message}".ljust(110),
+        end="",
+        flush=True,
+    )
 def load_product(conn, run_id, scope_dir, raw_dir):
+    started_at = perf_counter()
     with conn.transaction():
         conn.execute(
             "SET TRANSACTION ISOLATION LEVEL REPEATABLE READ"
@@ -113,7 +119,7 @@ def load_product(conn, run_id, scope_dir, raw_dir):
             FROM q_products
             """
         )
-
+        product_progress("Kiểm tra dữ liệu đã có...")
         conflicts = conn.execute(
             """
             SELECT COUNT(*)
@@ -259,6 +265,7 @@ def load_product(conn, run_id, scope_dir, raw_dir):
 
         # Chỉ thêm mã chưa tồn tại: chạy lại không sửa khóa,
         # thuộc tính hoặc loaded_at của các dòng đã nạp.
+        product_progress("Nạp sản phẩm chưa có...")
         inserted = conn.execute(
             f"""
             INSERT INTO dw.dim_product ({columns})
@@ -273,6 +280,7 @@ def load_product(conn, run_id, scope_dir, raw_dir):
         ).rowcount
 
         # Đối chiếu toàn bộ cột nghiệp vụ theo hai chiều.
+        product_progress("Đối soát dữ liệu...")
         difference = conn.execute(
             f"""
             SELECT COUNT(*)
@@ -319,7 +327,7 @@ def load_product(conn, run_id, scope_dir, raw_dir):
             ORDER BY scope_status
             """
         ).fetchall()
-
+        product_progress("Ghi audit và hoàn tất...")
         details = {
             **metadata,
             "step": "load_dim_product",
@@ -373,24 +381,33 @@ def load_product(conn, run_id, scope_dir, raw_dir):
         )
 
     # In kết quả sau khi commit thành công.
-    print(f"PASS | Dim_Product | {actual_count:,} sản phẩm")
-    print(f"INSERT | {inserted:,} dòng mới")
-    print(f"UNCHANGED | {before:,} dòng đã tồn tại")
-    print(f"PASS | Đối chiếu hai chiều | {difference} khác biệt")
+    # Chỉ báo PASS sau khi commit thành công.
+    elapsed = perf_counter() - started_at
+    minutes, seconds = divmod(elapsed, 60)
 
-    for status, count, missing in summary:
-        print(
-            f"PASS | {status} | {count:,} sản phẩm"
-            f" | thiếu lookup={missing:,}"
-        )
+    # Xóa dòng trạng thái.
+    print("\r" + " " * 110 + "\r", end="", flush=True)
+
+    print(
+        f"PASS | Dim_Product"
+        f" | Tổng: {actual_count:,}"
+        f" | Mới: {inserted:,}"
+        f" | Đã có: {before:,}"
+        f" | {int(minutes)} phút {seconds:.1f} giây",
+        flush=True,
+    )
 
     if extra_review:
         print(
             f"WARN | {extra_review:,} mã ngoài CSV phân loại"
-            " được giữ REVIEW do thiếu lookup"
+            " được giữ REVIEW do thiếu lookup",
+            flush=True,
         )
 
-    print(f"dw_load_id={run_id} vẫn RUNNING.")
+    print(
+        f"dw_load_id={run_id} vẫn RUNNING.",
+        flush=True,
+    )
 
 
 def main():

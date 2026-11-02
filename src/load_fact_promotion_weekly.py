@@ -7,7 +7,11 @@ from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-from load_dim_household_store import load_dimension
+from load_dim_household_store import (
+    load_dimension,
+    progress_start,
+    progress_done,
+)
 
 
 COLUMNS = [
@@ -132,7 +136,8 @@ def load_promotions(conn, run_id, scope_dir, raw_dir):
             f"SOURCE | Promotions IN_SCOPE | {source_count:,} dòng",
             flush=True,
         )
-        print("Đang tổng hợp sản phẩm–cửa hàng–tuần...", flush=True)
+        step = "Promotion: tổng hợp theo sản phẩm, cửa hàng và tuần"
+        step_started = progress_start(step)
 
         # Không DISTINCT toàn bộ nguồn trước khi COUNT:
         # source_row_count phải phản ánh đủ các dòng được tổng hợp.
@@ -215,6 +220,10 @@ def load_promotions(conn, run_id, scope_dir, raw_dir):
             represented_rows == source_count,
             "Tổng source_row_count không khớp số dòng nguồn.",
         )
+        progress_done(step, step_started, rows=grouped_count)
+
+        step = "Promotion: kiểm tra và ánh xạ khóa Dimension"
+        step_started = progress_start(step)
 
         bad_products = conn.execute(
             """
@@ -292,6 +301,7 @@ def load_promotions(conn, run_id, scope_dir, raw_dir):
             """
         )
         conn.execute("ANALYZE expected_promotion")
+        progress_done(step, step_started, rows=mapped_count)
 
         print(
             f"GROUPED | {grouped_count:,} nhóm | Đang nạp và đối soát...",

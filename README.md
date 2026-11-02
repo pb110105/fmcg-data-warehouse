@@ -319,8 +319,7 @@ Chạy từng lệnh; dừng nếu một bước báo lỗi.
 ```bat
 python src/check_dw_quality.py --dw-load-id `id`
 
-docker compose exec -T postgres psql -X -U fmcg_admin -d fmcg_dw -v batch_id=1 < sql\etl\01_load_date_week.sql
-
+python src/load_dim_date_week.py --dw-load-id `id`
 python src/load_dim_product.py --dw-load-id `id`
 python src/load_dim_household_store.py --dw-load-id `id`
 python src/load_dim_campaign_coupon.py --dw-load-id `id`

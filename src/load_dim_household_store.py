@@ -1,12 +1,13 @@
 import argparse
 from pathlib import Path
-
+from time import perf_counter
 from psycopg.types.json import Jsonb
 
 from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
+from time import perf_counter
 
 
 HOUSEHOLD_COLUMNS = [
@@ -23,11 +24,38 @@ HOUSEHOLD_COLUMNS = [
 ]
 
 STORE_COLUMNS = ["store_id", "etl_batch_id"]
+STEP_TIMES = {}
+def progress_start(step):
+    print(
+        "\r" + f"ĐANG XỬ LÝ | {step}".ljust(140),
+        end="",
+        flush=True,
+    )
+    return perf_counter()
 
 
+def progress_done(step, started_at, rows=None):
+    STEP_TIMES[step] = perf_counter() - started_at
+def format_duration(seconds):
+    minutes, seconds = divmod(seconds, 60)
+    hours, minutes = divmod(int(minutes), 60)
+
+    if hours:
+        return f"{hours} giờ {minutes} phút {seconds:.1f} giây"
+    if minutes:
+        return f"{minutes} phút {seconds:.1f} giây"
+    return f"{seconds:.1f} giây"
 def load_dimension(
     conn, batch_id, run_id, table, expected_table, key, columns
 ):
+    table_started = perf_counter()
+    STEP_TIMES.clear()
+
+    step = f"dw.{table}: kiểm tra dữ liệu trước khi nạp"
+    step_started = progress_start(step)
+
+    step = f"dw.{table}: kiểm tra dữ liệu trước khi nạp"
+    step_started = progress_start(step)
     # Hỗ trợ khóa đơn và khóa ghép.
     keys = [key] if isinstance(key, str) else list(key)
     key_list = ", ".join(keys)
@@ -75,6 +103,10 @@ def load_dimension(
     before = conn.execute(
         f"SELECT COUNT(*) FROM dw.{table}"
     ).fetchone()[0]
+    progress_done(step, step_started)
+
+    step = f"dw.{table}: nạp dữ liệu"
+    step_started = progress_start(step)
 
     inserted = conn.execute(
         f"""
@@ -88,7 +120,10 @@ def load_dimension(
         ORDER BY {order_by}
         """
     ).rowcount
+    progress_done(step, step_started, rows=inserted)
 
+    step = f"dw.{table}: đối soát dữ liệu"
+    step_started = progress_start(step)
     difference = conn.execute(
         f"""
         SELECT COUNT(*)
@@ -122,6 +157,10 @@ def load_dimension(
         and actual_count == before + inserted,
         f"{table}: đối soát không khớp.",
     )
+    progress_done(step, step_started, rows=actual_count)
+
+    step = f"dw.{table}: ghi kết quả kiểm tra vào audit"
+    step_started = progress_start(step)
 
     details = {
         "step": f"load_{table}",
@@ -159,6 +198,25 @@ def load_dimension(
             f"{table.upper()}_LOAD_V1", Jsonb(details),
         ),
     )
+    elapsed = perf_counter() - table_started
+
+    # Xóa dòng trạng thái đang hiển thị.
+    print("\r" + " " * 140 + "\r", end="", flush=True)
+
+    print(
+        f"XONG BƯỚC | dw.{table}"
+        f" | Tổng: {actual_count:,}"
+        f" | Mới: {inserted:,}"
+        f" | Đã có: {before:,}"
+        f" | {format_duration(elapsed)}",
+        flush=True,
+    )
+
+    timings = " | ".join(
+        f"{name.split(': ', 1)[-1]}: {format_duration(seconds)}"
+        for name, seconds in STEP_TIMES.items()
+    )
+    print(f"THỜI GIAN | {timings}", flush=True)
 
     return table, actual_count, inserted, before
 
