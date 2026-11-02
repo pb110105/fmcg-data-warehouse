@@ -7,7 +7,6 @@ from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-from time import perf_counter
 
 
 HOUSEHOLD_COLUMNS = [
