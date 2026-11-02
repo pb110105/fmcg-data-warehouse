@@ -2,7 +2,12 @@ import argparse
 from pathlib import Path
 
 from psycopg.types.json import Jsonb
-
+from load_dim_household_store import (
+    load_dimension,
+    print_load_result,
+    progress_start,
+    progress_done,
+)
 from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require, EXPECTED
 from check_dw_quality import create_normalized_views
@@ -398,10 +403,7 @@ def load_sales(conn, run_id, scope_dir, raw_dir):
         )
 
     table, total, inserted, unchanged = result
-    print(f"\nPASS | {table} | {total:,} dòng")
-    print(f"INSERT | {inserted:,} dòng mới")
-    print(f"UNCHANGED | {unchanged:,} dòng đã tồn tại")
-    print("PASS | Đối chiếu hai chiều | 0 khác biệt")
+    print_load_result(table, total, inserted, unchanged)
 
     for column, value in totals.items():
         print(f"PASS | Tổng {column} | {value}")

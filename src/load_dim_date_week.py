@@ -3,7 +3,7 @@ from time import perf_counter
 
 from load_staging import ROOT, connect_db
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-
+from load_dim_household_store import print_load_result
 
 SQL_FILE = ROOT / "sql" / "etl" / "01_load_date_week.sql"
 
@@ -150,25 +150,22 @@ def load_date_week(conn, run_id):
         dates_after, weeks_after = calendar_counts(conn)
 
     # Chỉ thông báo PASS sau khi transaction commit thành công.
-    print(
-        f"PASS | dw.dim_date"
-        f" | Tổng: {dates_after:,}"
-        f" | Mới: {dates_after - dates_before:,}"
-        f" | Đã có: {dates_before:,}",
-        flush=True,
+    print_load_result(
+        "dim_date",
+        dates_after,
+        dates_after - dates_before,
+        dates_before,
+    )
+
+    print_load_result(
+        "dim_week",
+        weeks_after,
+        weeks_after - weeks_before,
+        weeks_before,
     )
 
     print(
-        f"PASS | dw.dim_week"
-        f" | Lịch: CJ_2017"
-        f" | Tổng: {weeks_after:,}"
-        f" | Mới: {weeks_after - weeks_before:,}"
-        f" | Đã có: {weeks_before:,}",
-        flush=True,
-    )
-
-    print(
-        f"HOÀN TẤT | Đã commit"
+        f"HOÀN TẤT | Date và Week"
         f" | {format_duration(perf_counter() - started_at)}"
         f" | dw_load_id={run_id} vẫn RUNNING",
         flush=True,

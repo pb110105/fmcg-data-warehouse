@@ -7,7 +7,10 @@ from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-from load_dim_household_store import load_dimension
+from load_dim_household_store import (
+    load_dimension,
+    print_load_result,
+)
 
 
 CAMPAIGN_COLUMNS = [
@@ -322,17 +325,10 @@ def load_campaign_coupon(conn, run_id, scope_dir, raw_dir):
                 }),
             ),
         )
-
-    # Chỉ báo thành công sau khi cả hai bảng đã commit.
-    for table, total, inserted, unchanged in (
-        campaign_result, coupon_result
-    ):
-        print(f"PASS | {table} | {total:,} dòng")
-        print(f"INSERT | {inserted:,} dòng mới")
-        print(f"UNCHANGED | {unchanged:,} dòng đã tồn tại")
-        print("PASS | Đối chiếu hai chiều | 0 khác biệt")
-
-    print("PASS | Ngày chiến dịch và liên kết chiến dịch–coupon")
+        for table, total, inserted, unchanged in (
+            campaign_result, coupon_result
+            ):
+            print_load_result(table, total, inserted, unchanged)
     print(f"dw_load_id={run_id} vẫn RUNNING.")
 
 

@@ -1,8 +1,9 @@
 import argparse
 from pathlib import Path
 from time import perf_counter
+from pandas.plotting import table
 from psycopg.types.json import Jsonb
-
+from time import perf_counter
 from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
@@ -24,18 +25,9 @@ HOUSEHOLD_COLUMNS = [
 ]
 
 STORE_COLUMNS = ["store_id", "etl_batch_id"]
-STEP_TIMES = {}
-def progress_start(step):
-    print(
-        "\r" + f"ĐANG XỬ LÝ | {step}".ljust(140),
-        end="",
-        flush=True,
-    )
-    return perf_counter()
+TABLE_TIMES = {}
 
 
-def progress_done(step, started_at, rows=None):
-    STEP_TIMES[step] = perf_counter() - started_at
 def format_duration(seconds):
     minutes, seconds = divmod(seconds, 60)
     hours, minutes = divmod(int(minutes), 60)
@@ -45,10 +37,39 @@ def format_duration(seconds):
     if minutes:
         return f"{minutes} phút {seconds:.1f} giây"
     return f"{seconds:.1f} giây"
+
+
+def progress_start(step):
+    print(f"ĐANG XỬ LÝ | {step}", flush=True)
+    return perf_counter()
+
+
+def progress_done(step, started_at, rows=None):
+    # Giữ tương thích với các chỗ đang gọi hàm này.
+    pass
+
+
+def print_load_result(table, total, inserted, unchanged):
+    elapsed = TABLE_TIMES.pop(table, None)
+    duration = (
+        f" | {format_duration(elapsed)}"
+        if elapsed is not None
+        else ""
+    )
+
+    print(
+        f"PASS | dw.{table}"
+        f" | Tổng: {total:,}"
+        f" | Mới: {inserted:,}"
+        f" | Đã có: {unchanged:,}"
+        f"{duration}",
+        flush=True,
+    )
 def load_dimension(
     conn, batch_id, run_id, table, expected_table, key, columns
 ):
     table_started = perf_counter()
+    print(f"ĐANG XỬ LÝ | dw.{table}", flush=True)
     STEP_TIMES.clear()
 
     step = f"dw.{table}: kiểm tra dữ liệu trước khi nạp"
@@ -124,6 +145,8 @@ def load_dimension(
 
     step = f"dw.{table}: đối soát dữ liệu"
     step_started = progress_start(step)
+    if table.startswith("fact_"):
+        print(f"ĐANG ĐỐI SOÁT | dw.{table}", flush=True)
     difference = conn.execute(
         f"""
         SELECT COUNT(*)
@@ -200,23 +223,7 @@ def load_dimension(
     )
     elapsed = perf_counter() - table_started
 
-    # Xóa dòng trạng thái đang hiển thị.
-    print("\r" + " " * 140 + "\r", end="", flush=True)
-
-    print(
-        f"XONG BƯỚC | dw.{table}"
-        f" | Tổng: {actual_count:,}"
-        f" | Mới: {inserted:,}"
-        f" | Đã có: {before:,}"
-        f" | {format_duration(elapsed)}",
-        flush=True,
-    )
-
-    timings = " | ".join(
-        f"{name.split(': ', 1)[-1]}: {format_duration(seconds)}"
-        for name, seconds in STEP_TIMES.items()
-    )
-    print(f"THỜI GIAN | {timings}", flush=True)
+    TABLE_TIMES[table] = perf_counter() - table_started
 
     return table, actual_count, inserted, before
 
@@ -459,10 +466,7 @@ def load_household_store(conn, run_id, scope_dir, raw_dir):
 
     # Hai Dimension và log được commit trong cùng transaction.
     for table, total, inserted, unchanged in results:
-        print(f"PASS | {table} | {total:,} dòng")
-        print(f"INSERT | {inserted:,} dòng mới")
-        print(f"UNCHANGED | {unchanged:,} dòng đã tồn tại")
-        print("PASS | Đối chiếu hai chiều | 0 khác biệt")
+        print_load_result(table, total, inserted, unchanged)
 
     print(f"INFO | Hộ có bản ghi nhân khẩu học | {available:,}")
     print(f"INFO | Hộ thiếu bản ghi nhân khẩu học | {missing:,}")

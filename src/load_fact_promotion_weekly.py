@@ -2,7 +2,12 @@ import argparse
 from pathlib import Path
 
 from psycopg.types.json import Jsonb
-
+from load_dim_household_store import (
+    load_dimension,
+    print_load_result,
+    progress_start,
+    progress_done,
+)
 from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
@@ -389,10 +394,7 @@ def load_promotions(conn, run_id, scope_dir, raw_dir):
         )
 
     table, total, inserted, unchanged = result
-    print(f"\nPASS | {table} | {total:,} dòng")
-    print(f"INSERT | {inserted:,} dòng mới")
-    print(f"UNCHANGED | {unchanged:,} dòng đã tồn tại")
-    print("PASS | Đối chiếu hai chiều | 0 khác biệt")
+    print_load_result(table, total, inserted, unchanged)
     print(f"PASS | Tổng source_row_count | {target_rows:,}")
     print(f"INFO | Nhóm có nhiều dòng nguồn | {multiple:,}")
     print(f"INFO | Nhóm có mã chưa biết | {unknown:,}")

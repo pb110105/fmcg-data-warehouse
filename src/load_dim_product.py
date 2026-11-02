@@ -7,7 +7,11 @@ from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-
+from load_dim_household_store import (
+    format_duration,
+    print_load_result,
+    TABLE_TIMES,
+)
 
 COLUMNS = [
     "product_id",
@@ -25,8 +29,7 @@ COLUMNS = [
 
 def product_progress(message):
     print(
-        "\r" + f"ĐANG XỬ LÝ | Dim_Product | {message}".ljust(110),
-        end="",
+        f"ĐANG XỬ LÝ | dw.dim_product | {message}",
         flush=True,
     )
 def load_product(conn, run_id, scope_dir, raw_dir):
@@ -379,23 +382,14 @@ def load_product(conn, run_id, scope_dir, raw_dir):
             """,
             (batch_id, run_id, Jsonb(details)),
         )
+        TABLE_TIMES["dim_product"] = perf_counter() - started_at
 
-    # In kết quả sau khi commit thành công.
-    # Chỉ báo PASS sau khi commit thành công.
-    elapsed = perf_counter() - started_at
-    minutes, seconds = divmod(elapsed, 60)
-
-    # Xóa dòng trạng thái.
-    print("\r" + " " * 110 + "\r", end="", flush=True)
-
-    print(
-        f"PASS | Dim_Product"
-        f" | Tổng: {actual_count:,}"
-        f" | Mới: {inserted:,}"
-        f" | Đã có: {before:,}"
-        f" | {int(minutes)} phút {seconds:.1f} giây",
-        flush=True,
-    )
+        print_load_result(
+            "dim_product",
+            actual_count,
+            inserted,
+            before,
+        )
 
     if extra_review:
         print(
