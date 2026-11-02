@@ -1,7 +1,6 @@
 import argparse
 from pathlib import Path
 from time import perf_counter
-from pandas.plotting import table
 from psycopg.types.json import Jsonb
 from time import perf_counter
 from load_staging import ROOT, connect_db
@@ -70,13 +69,6 @@ def load_dimension(
 ):
     table_started = perf_counter()
     print(f"ĐANG XỬ LÝ | dw.{table}", flush=True)
-    STEP_TIMES.clear()
-
-    step = f"dw.{table}: kiểm tra dữ liệu trước khi nạp"
-    step_started = progress_start(step)
-
-    step = f"dw.{table}: kiểm tra dữ liệu trước khi nạp"
-    step_started = progress_start(step)
     # Hỗ trợ khóa đơn và khóa ghép.
     keys = [key] if isinstance(key, str) else list(key)
     key_list = ", ".join(keys)
@@ -124,10 +116,6 @@ def load_dimension(
     before = conn.execute(
         f"SELECT COUNT(*) FROM dw.{table}"
     ).fetchone()[0]
-    progress_done(step, step_started)
-
-    step = f"dw.{table}: nạp dữ liệu"
-    step_started = progress_start(step)
 
     inserted = conn.execute(
         f"""
@@ -141,10 +129,7 @@ def load_dimension(
         ORDER BY {order_by}
         """
     ).rowcount
-    progress_done(step, step_started, rows=inserted)
 
-    step = f"dw.{table}: đối soát dữ liệu"
-    step_started = progress_start(step)
     if table.startswith("fact_"):
         print(f"ĐANG ĐỐI SOÁT | dw.{table}", flush=True)
     difference = conn.execute(
@@ -180,10 +165,7 @@ def load_dimension(
         and actual_count == before + inserted,
         f"{table}: đối soát không khớp.",
     )
-    progress_done(step, step_started, rows=actual_count)
 
-    step = f"dw.{table}: ghi kết quả kiểm tra vào audit"
-    step_started = progress_start(step)
 
     details = {
         "step": f"load_{table}",

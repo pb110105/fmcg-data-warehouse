@@ -325,10 +325,10 @@ def load_campaign_coupon(conn, run_id, scope_dir, raw_dir):
                 }),
             ),
         )
-        for table, total, inserted, unchanged in (
-            campaign_result, coupon_result
-            ):
-            print_load_result(table, total, inserted, unchanged)
+    for table, total, inserted, unchanged in (
+        campaign_result, coupon_result
+    ):
+        print_load_result(table, total, inserted, unchanged)
     print(f"dw_load_id={run_id} vẫn RUNNING.")
 
 

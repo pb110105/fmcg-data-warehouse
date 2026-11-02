@@ -7,7 +7,6 @@ from load_staging import ROOT, connect_db
 from check_dw_inputs import check_inputs, require
 from check_dw_quality import create_normalized_views
 from dw_run import acquire_lock, mark_failed, PIPELINE_VERSION
-from load_dim_household_store import load_dimension
 from load_dim_household_store import (
     load_dimension,
     print_load_result,
@@ -295,20 +294,19 @@ def load_bridges(conn, run_id, scope_dir, raw_dir):
             conn, batch_id, run_id,
             "bridge_coupon_product", coupon_stats,
         )
-        for result, stats in (
-            (campaign_result, campaign_stats),
-            (coupon_result, coupon_stats),
-            ):
-            table, total, inserted, unchanged = result
-            print_load_result(table, total, inserted, unchanged)
-            removed = stats["duplicate_rows_removed"]
-            if removed:
-                print(
-                    f"INFO | dw.{table}"
-                    f" | Loại trùng: {removed:,} dòng",
-                    flush=True,
-                )
-
+    for result, stats in (
+        (campaign_result, campaign_stats),
+        (coupon_result, coupon_stats),
+    ):
+        table, total, inserted, unchanged = result
+        print_load_result(table, total, inserted, unchanged)
+        removed = stats["duplicate_rows_removed"]
+        if removed:
+            print(
+                f"INFO | dw.{table}"
+                f" | Loại trùng: {removed:,} dòng",
+                flush=True,
+            )
     print(f"\ndw_load_id={run_id} vẫn RUNNING.")
 
 

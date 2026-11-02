@@ -382,14 +382,14 @@ def load_product(conn, run_id, scope_dir, raw_dir):
             """,
             (batch_id, run_id, Jsonb(details)),
         )
-        TABLE_TIMES["dim_product"] = perf_counter() - started_at
+    TABLE_TIMES["dim_product"] = perf_counter() - started_at
 
-        print_load_result(
-            "dim_product",
-            actual_count,
-            inserted,
-            before,
-        )
+    print_load_result(
+        "dim_product",
+        actual_count,
+        inserted,
+        before,
+    )
 
     if extra_review:
         print(
